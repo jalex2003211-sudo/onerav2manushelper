@@ -1,14 +1,16 @@
 /** @type {const} */
 const themeColors = {
-  primary: { light: '#0a7ea4', dark: '#0a7ea4' },
-  background: { light: '#ffffff', dark: '#151718' },
-  surface: { light: '#f5f5f5', dark: '#1e2022' },
-  foreground: { light: '#11181C', dark: '#ECEDEE' },
-  muted: { light: '#687076', dark: '#9BA1A6' },
-  border: { light: '#E5E7EB', dark: '#334155' },
-  success: { light: '#22C55E', dark: '#4ADE80' },
-  warning: { light: '#F59E0B', dark: '#FBBF24' },
-  error: { light: '#EF4444', dark: '#F87171' },
+  primary: { light: '#C4856A', dark: '#D4957A' },        // Warm terracotta
+  background: { light: '#FAF7F4', dark: '#1A1614' },     // Warm off-white / deep warm black
+  surface: { light: '#F0EBE5', dark: '#2A2320' },        // Card surfaces
+  foreground: { light: '#2C1F1A', dark: '#F0EBE5' },     // Primary text
+  muted: { light: '#9C8880', dark: '#7A6A64' },          // Secondary text
+  border: { light: '#E0D8D2', dark: '#3A2E2A' },         // Subtle dividers
+  success: { light: '#7BAF8E', dark: '#8FBF9F' },        // Soft green
+  warning: { light: '#D4A96A', dark: '#E4B97A' },        // Warm amber
+  error: { light: '#C47070', dark: '#D48080' },          // Muted red
+  accent: { light: '#8B7355', dark: '#A08060' },         // Deep warm gold
+  tint: { light: '#C4856A', dark: '#D4957A' },           // Tab bar tint (same as primary)
 };
 
 module.exports = { themeColors };
