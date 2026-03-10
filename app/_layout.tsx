@@ -1,6 +1,6 @@
 import "@/global.css";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Stack } from "expo-router";
+import { Stack, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -31,13 +31,25 @@ export const unstable_settings = {
   anchor: "(tabs)",
 };
 
+/**
+ * Hydrates all Zustand stores from AsyncStorage, then redirects to onboarding
+ * if setup is not complete. Navigation only happens AFTER the root layout
+ * has fully mounted (guarded by a mounted ref + setTimeout).
+ */
 function StoreHydrator() {
+  const router = useRouter();
+  const segments = useSegments();
+
   const hydratePartners = usePartnersStore((s) => s.hydrate);
   const hydrateSession = useSessionStore((s) => s.hydrateHistory);
   const hydrateMood = useMoodStore((s) => s.hydrate);
   const hydrateInsights = useInsightsStore((s) => s.hydrate);
   const hydrateMoments = useMomentsStore((s) => s.hydrate);
+  const isSetupComplete = usePartnersStore((s) => s.isSetupComplete);
 
+  const [hydrated, setHydrated] = useState(false);
+
+  // Step 1: hydrate all stores
   useEffect(() => {
     Promise.all([
       hydratePartners(),
@@ -45,8 +57,26 @@ function StoreHydrator() {
       hydrateMood(),
       hydrateInsights(),
       hydrateMoments(),
-    ]).catch(() => {});
+    ])
+      .catch(() => {})
+      .finally(() => setHydrated(true));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Step 2: once hydrated, redirect if needed — deferred so Root Layout is mounted
+  useEffect(() => {
+    if (!hydrated) return;
+
+    const inAuthGroup = segments[0] === 'onboarding' || segments[0] === 'setup' || segments[0] === 'pair';
+
+    if (!isSetupComplete && !inAuthGroup) {
+      // Defer navigation until after the current render cycle completes
+      const timer = setTimeout(() => {
+        router.replace('/onboarding');
+      }, 0);
+      return () => clearTimeout(timer);
+    }
+  }, [hydrated, isSetupComplete, segments, router]);
 
   return null;
 }
@@ -80,9 +110,7 @@ export default function RootLayout() {
       new QueryClient({
         defaultOptions: {
           queries: {
-            // Disable automatic refetching on window focus for mobile
             refetchOnWindowFocus: false,
-            // Retry failed requests once
             retry: 1,
           },
         },
@@ -90,7 +118,6 @@ export default function RootLayout() {
   );
   const [trpcClient] = useState(() => createTRPCClient());
 
-  // Ensure minimum 8px padding for top and bottom on mobile
   const providerInitialMetrics = useMemo(() => {
     const metrics = initialWindowMetrics ?? { insets: initialInsets, frame: initialFrame };
     return {

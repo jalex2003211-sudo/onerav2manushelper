@@ -23,12 +23,6 @@ export default function HomeScreen() {
   const { myMood, partnerMood } = useMoodStore();
   const sessionHistory = useSessionStore((s) => s.sessionHistory);
 
-  // Redirect to setup if not configured
-  useEffect(() => {
-    if (!isSetupComplete) {
-      router.replace('/onboarding');
-    }
-  }, [isSetupComplete]);
 
   // AI daily question (falls back to static if not authenticated)
   const [dailyQuestion, setDailyQuestion] = useState<string>(getDailyQuestion());
@@ -46,8 +40,6 @@ export default function HomeScreen() {
       setDailyQuestion(aiDailyQuery.data.question);
     }
   }, [aiDailyQuery.data]);
-
-  if (!isSetupComplete) return null;
 
   const greeting = getGreeting();
   const sessionsThisWeek = getSessionsThisWeek(sessionHistory);
