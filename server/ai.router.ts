@@ -62,8 +62,10 @@ Return ONLY the question text, nothing else.`;
 
   /**
    * Generate an AI-powered daily question personalized to the couple.
+   * Uses publicProcedure — no user identity is needed; inputs are anonymous
+   * (relationship stage + streak count). Safe to call without authentication.
    */
-  dailyQuestion: protectedProcedure
+  dailyQuestion: publicProcedure
     .input(
       z.object({
         relationshipStage: z.enum(['break-the-ice', 'dating', 'long-term']),

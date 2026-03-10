@@ -160,5 +160,19 @@ export function buildSession(deckId: DeckId, count: number = 10): Question[] {
     result.push(...shuffled.slice(0, perPhase));
   }
 
+  // If the primary deck doesn't have enough questions to fill the requested count,
+  // pad with questions from other decks in the same phase order to preserve
+  // the emotional arc (warmup → explore → deep → reflection).
+  if (result.length < count) {
+    const usedIds = new Set(result.map(q => q.id));
+    const fallback = QUESTIONS
+      .filter(q => q.deck !== deckId && !usedIds.has(q.id))
+      .sort((a, b) => phases.indexOf(a.phase) - phases.indexOf(b.phase));
+    for (const q of fallback) {
+      if (result.length >= count) break;
+      result.push(q);
+    }
+  }
+
   return result.slice(0, count);
 }

@@ -33,7 +33,9 @@ export default function SettingsScreen() {
   const colors = useColors();
   const { partnerA, partnerB, relationshipStage, streakCount, updatePartners, updateStage, reset: resetPartners } = usePartnersStore();
   const { sessionHistory, reset: resetSession } = useSessionStore();
-  const { moments } = useMomentsStore();
+  const { moments, clearAll: clearMoments } = useMomentsStore();
+  const { reset: resetMood } = useMoodStore();
+  const { reset: resetInsights } = useInsightsStore();
 
   const [nameA, setNameA] = useState(partnerA.name);
   const [nameB, setNameB] = useState(partnerB.name);
@@ -54,7 +56,7 @@ export default function SettingsScreen() {
   function handleReset() {
     if (Platform.OS === 'web') {
       if (window.confirm('Reset all data? This cannot be undone.')) {
-        resetPartners(); resetSession();
+        resetPartners(); resetSession(); clearMoments(); resetMood(); resetInsights();
         router.replace('/onboarding');
       }
     } else {
@@ -68,7 +70,7 @@ export default function SettingsScreen() {
             style: 'destructive',
             onPress: () => {
               if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-              resetPartners(); resetSession();
+              resetPartners(); resetSession(); clearMoments(); resetMood(); resetInsights();
               router.replace('/onboarding');
             },
           },

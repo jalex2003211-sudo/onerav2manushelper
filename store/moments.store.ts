@@ -15,6 +15,7 @@ interface MomentsStore {
   addMoment: (moment: Omit<SavedMoment, 'savedAt'>) => void;
   removeMoment: (questionId: string) => void;
   isSaved: (questionId: string) => boolean;
+  clearAll: () => void;
   hydrate: () => Promise<void>;
 }
 
@@ -38,6 +39,11 @@ export const useMomentsStore = create<MomentsStore>((set, get) => ({
   },
 
   isSaved: (questionId) => get().moments.some((m) => m.questionId === questionId),
+
+  clearAll: () => {
+    set({ moments: [] });
+    AsyncStorage.removeItem(STORAGE_KEY).catch(() => {});
+  },
 
   hydrate: async () => {
     try {

@@ -25,6 +25,7 @@ export interface SessionHistoryItem {
   id: string;
   deckId: DeckId;
   questionCount: number;
+  phasesCompleted: number;
   connectionScore: number | null;
   savedMomentIds: string[];
   completedAt: string;
@@ -40,7 +41,7 @@ interface SessionStore extends SessionState {
   setAIFollowUp: (question: string | null) => void;
   setLoadingAI: (loading: boolean) => void;
   setConnectionScore: (score: number) => void;
-  endSession: () => SessionHistoryItem;
+  endSession: () => SessionHistoryItem | null;
   reset: () => void;
   hydrateHistory: () => Promise<void>;
 }
@@ -124,11 +125,17 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   setConnectionScore: (score) => set({ connectionScore: score }),
 
   endSession: () => {
-    const { sessionId, deckId, questions, connectionScore, savedMomentIds, sessionHistory } = get();
+    const { isActive, sessionId, deckId, questions, currentIndex, connectionScore, savedMomentIds, sessionHistory } = get();
+    // Guard against double-call: if session is already ended, return null
+    if (!isActive) return null;
+    // Compute the number of unique phases the couple actually reached
+    const questionsAnswered = questions.slice(0, currentIndex + 1);
+    const phasesCompleted = new Set(questionsAnswered.map(q => q.phase)).size;
     const item: SessionHistoryItem = {
       id: sessionId ?? `session_${Date.now()}`,
       deckId: deckId!,
-      questionCount: questions.length,
+      questionCount: questionsAnswered.length,
+      phasesCompleted,
       connectionScore,
       savedMomentIds: Array.from(savedMomentIds),
       completedAt: new Date().toISOString(),

@@ -28,6 +28,7 @@ export default function SessionEndScreen() {
   const colors = useColors();
 
   const count = lastSession?.questionCount ?? parseInt(params.count ?? '10', 10);
+  const phasesCompleted = lastSession?.phasesCompleted ?? 4;
   const [connectionValue, setConnectionValue] = useState(7);
   const sliderAnim = useRef(new Animated.Value((7 / 10) * SLIDER_WIDTH)).current;
 
@@ -92,7 +93,7 @@ export default function SessionEndScreen() {
           </View>
           <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
           <View style={styles.stat}>
-            <Text style={[styles.statNumber, { color: colors.primary }]}>4</Text>
+            <Text style={[styles.statNumber, { color: colors.primary }]}>{phasesCompleted}</Text>
             <Text style={[styles.statLabel, { color: colors.muted }]}>Phases completed</Text>
           </View>
         </View>

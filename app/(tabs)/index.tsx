@@ -77,6 +77,7 @@ export default function HomeScreen() {
         <StreakWidget
           streakCount={streakCount}
           sessionsThisWeek={sessionsThisWeek}
+          sessionHistory={sessionHistory}
           colors={colors}
         />
 
@@ -178,13 +179,33 @@ export default function HomeScreen() {
 interface StreakWidgetProps {
   streakCount: number;
   sessionsThisWeek: number;
+  sessionHistory: SessionHistoryItem[];
   colors: ReturnType<typeof useColors>;
 }
 
-function StreakWidget({ streakCount, sessionsThisWeek, colors }: StreakWidgetProps) {
+function StreakWidget({ streakCount, sessionsThisWeek, sessionHistory, colors }: StreakWidgetProps) {
   const days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-  const today = new Date().getDay(); // 0=Sun
-  const adjustedToday = today === 0 ? 6 : today - 1;
+
+  // Build a set of ISO date strings (YYYY-MM-DD) for days that had at least one session
+  // within the current calendar week (Mon–Sun).
+  const activeDayIndices = new Set<number>();
+  const now = new Date();
+  const todayDow = now.getDay(); // 0=Sun
+  const adjustedToday = todayDow === 0 ? 6 : todayDow - 1; // Mon=0 ... Sun=6
+
+  // Start of this week (Monday at 00:00:00)
+  const startOfWeek = new Date(now);
+  startOfWeek.setDate(now.getDate() - adjustedToday);
+  startOfWeek.setHours(0, 0, 0, 0);
+
+  for (const session of sessionHistory) {
+    const d = new Date(session.completedAt);
+    if (d >= startOfWeek && d <= now) {
+      const dow = d.getDay();
+      const adjustedDow = dow === 0 ? 6 : dow - 1;
+      activeDayIndices.add(adjustedDow);
+    }
+  }
 
   return (
     <View style={[styles.streakCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -202,10 +223,10 @@ function StreakWidget({ streakCount, sessionsThisWeek, colors }: StreakWidgetPro
                   style={[
                     styles.dot,
                     {
-                      backgroundColor:
-                        i <= adjustedToday && streakCount > 0
-                          ? colors.primary
-                          : colors.border,
+                      // A dot is lit only if there was an actual session on that day this week
+                      backgroundColor: activeDayIndices.has(i)
+                        ? colors.primary
+                        : colors.border,
                     },
                   ]}
                 />

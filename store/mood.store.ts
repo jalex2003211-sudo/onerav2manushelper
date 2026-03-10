@@ -24,6 +24,7 @@ interface MoodStore {
   recentMoods: MoodEntry[];
   setMyMood: (mood: MoodLabel, visibleToPartner: boolean) => void;
   setPartnerMood: (entry: MoodEntry | null) => void;
+  reset: () => void;
   hydrate: () => Promise<void>;
 }
 
@@ -47,6 +48,11 @@ export const useMoodStore = create<MoodStore>((set, get) => ({
   },
 
   setPartnerMood: (entry) => set({ partnerMood: entry }),
+
+  reset: () => {
+    set({ myMood: null, partnerMood: null, recentMoods: [] });
+    AsyncStorage.removeItem(STORAGE_KEY).catch(() => {});
+  },
 
   hydrate: async () => {
     try {

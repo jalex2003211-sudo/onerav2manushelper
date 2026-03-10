@@ -67,7 +67,12 @@ function StoreHydrator() {
   useEffect(() => {
     if (!hydrated) return;
 
-    const inAuthGroup = segments[0] === 'onboarding' || segments[0] === 'setup' || segments[0] === 'pair';
+    // Include 'oauth' so the OAuth callback is never interrupted by the setup redirect
+    const inAuthGroup =
+      segments[0] === 'onboarding' ||
+      segments[0] === 'setup' ||
+      segments[0] === 'pair' ||
+      segments[0] === 'oauth';
 
     if (!isSetupComplete && !inAuthGroup) {
       // Defer navigation until after the current render cycle completes

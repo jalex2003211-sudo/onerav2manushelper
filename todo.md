@@ -69,3 +69,22 @@
 - [x] All screens migrated from AppContext to Zustand stores
 - [x] Zero TypeScript errors
 - [x] All 13 tests passing
+
+## V2 Regression Fixes (from QA audit)
+
+### Critical
+- [x] FIX-C1: Change ai.dailyQuestion from protectedProcedure to publicProcedure
+- [x] FIX-C2: Fix buildSession to pad short decks to 10 questions
+
+### High
+- [x] FIX-H1: Guard endSession() against double-call in session.store
+- [x] FIX-H2: Replace hardcoded "4 phases" with computed phasesCompleted in session-end
+- [x] FIX-H3: Write Zustand store unit tests (partners, session, moments)
+
+### Medium
+- [x] FIX-M1: Add oauth to inAuthGroup guard in StoreHydrator
+- [x] FIX-M2: Add reset() to mood, moments, and insights stores + fix settings reset
+- [x] FIX-M3: Fix streak widget dots to reflect actual daily activity
+
+### Low
+- [x] FIX-L1: Write AI router weeklyInsight parsing unit test

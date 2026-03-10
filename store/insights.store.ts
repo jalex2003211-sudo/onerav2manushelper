@@ -16,6 +16,7 @@ interface InsightsStore {
   setInsights: (insights: InsightEntry[]) => void;
   addInsight: (insight: InsightEntry) => void;
   setGenerating: (value: boolean) => void;
+  reset: () => void;
   hydrate: () => Promise<void>;
 }
 
@@ -42,6 +43,11 @@ export const useInsightsStore = create<InsightsStore>((set, get) => ({
   },
 
   setGenerating: (value) => set({ isGenerating: value }),
+
+  reset: () => {
+    set({ insights: [], latestInsight: null, isGenerating: false });
+    AsyncStorage.removeItem(STORAGE_KEY).catch(() => {});
+  },
 
   hydrate: async () => {
     try {
