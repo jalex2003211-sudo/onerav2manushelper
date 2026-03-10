@@ -18,7 +18,11 @@ import type { EdgeInsets, Metrics, Rect } from "react-native-safe-area-context";
 
 import { trpc, createTRPCClient } from "@/lib/trpc";
 import { initManusRuntime, subscribeSafeAreaInsets } from "@/lib/_core/manus-runtime";
-import { AppProvider } from "@/lib/app-context";
+import { usePartnersStore } from "@/store/partners.store";
+import { useSessionStore } from "@/store/session.store";
+import { useMoodStore } from "@/store/mood.store";
+import { useInsightsStore } from "@/store/insights.store";
+import { useMomentsStore } from "@/store/moments.store";
 
 const DEFAULT_WEB_INSETS: EdgeInsets = { top: 0, right: 0, bottom: 0, left: 0 };
 const DEFAULT_WEB_FRAME: Rect = { x: 0, y: 0, width: 0, height: 0 };
@@ -26,6 +30,26 @@ const DEFAULT_WEB_FRAME: Rect = { x: 0, y: 0, width: 0, height: 0 };
 export const unstable_settings = {
   anchor: "(tabs)",
 };
+
+function StoreHydrator() {
+  const hydratePartners = usePartnersStore((s) => s.hydrate);
+  const hydrateSession = useSessionStore((s) => s.hydrateHistory);
+  const hydrateMood = useMoodStore((s) => s.hydrate);
+  const hydrateInsights = useInsightsStore((s) => s.hydrate);
+  const hydrateMoments = useMomentsStore((s) => s.hydrate);
+
+  useEffect(() => {
+    Promise.all([
+      hydratePartners(),
+      hydrateSession(),
+      hydrateMood(),
+      hydrateInsights(),
+      hydrateMoments(),
+    ]).catch(() => {});
+  }, []);
+
+  return null;
+}
 
 export default function RootLayout() {
   const initialInsets = initialWindowMetrics?.insets ?? DEFAULT_WEB_INSETS;
@@ -81,25 +105,26 @@ export default function RootLayout() {
 
   const content = (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <AppProvider>
       <trpc.Provider client={trpcClient} queryClient={queryClient}>
         <QueryClientProvider client={queryClient}>
-          {/* Default to hiding native headers so raw route segments don't appear (e.g. "(tabs)", "products/[id]"). */}
-          {/* If a screen needs the native header, explicitly enable it and set a human title via Stack.Screen options. */}
-          {/* in order for ios apps tab switching to work properly, use presentation: "fullScreenModal" for login page, whenever you decide to use presentation: "modal*/}
+          <StoreHydrator />
           <Stack screenOptions={{ headerShown: false, animation: 'fade' }}>
             <Stack.Screen name="(tabs)" />
             <Stack.Screen name="oauth/callback" />
+            <Stack.Screen name="onboarding" options={{ presentation: 'fullScreenModal', animation: 'fade', gestureEnabled: false }} />
             <Stack.Screen name="setup" options={{ presentation: 'fullScreenModal', animation: 'slide_from_bottom' }} />
+            <Stack.Screen name="pair" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
             <Stack.Screen name="session-start" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
             <Stack.Screen name="session" options={{ presentation: 'fullScreenModal', animation: 'slide_from_bottom' }} />
             <Stack.Screen name="session-end" options={{ presentation: 'fullScreenModal', animation: 'fade' }} />
             <Stack.Screen name="daily" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+            <Stack.Screen name="mood" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+            <Stack.Screen name="insights" options={{ animation: 'slide_from_right' }} />
+            <Stack.Screen name="timeline" options={{ animation: 'slide_from_right' }} />
           </Stack>
           <StatusBar style="auto" />
         </QueryClientProvider>
       </trpc.Provider>
-      </AppProvider>
     </GestureHandlerRootView>
   );
 

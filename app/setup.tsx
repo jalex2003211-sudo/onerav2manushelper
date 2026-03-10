@@ -11,7 +11,7 @@ import {
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { ScreenContainer } from '@/components/screen-container';
-import { useApp } from '@/lib/app-context';
+import { usePartnersStore } from '@/store/partners.store';
 import { useColors } from '@/hooks/use-colors';
 import type { RelationshipStage } from '@/lib/data/questions';
 
@@ -25,7 +25,7 @@ const STAGES: { id: RelationshipStage; label: string; description: string }[] = 
 
 export default function SetupScreen() {
   const router = useRouter();
-  const { completeSetup } = useApp();
+  const completeSetup = usePartnersStore((s) => s.completeSetup);
   const colors = useColors();
 
   const [step, setStep] = useState<'partners' | 'stage'>('partners');

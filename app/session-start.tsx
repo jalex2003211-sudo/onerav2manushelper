@@ -3,17 +3,19 @@ import { View, Text, ScrollView, Pressable, StyleSheet, Platform } from 'react-n
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { ScreenContainer } from '@/components/screen-container';
-import { useApp } from '@/lib/app-context';
 import { useColors } from '@/hooks/use-colors';
+import { usePartnersStore } from '@/store/partners.store';
+import { useSessionStore } from '@/store/session.store';
 import { DECKS, getDecksForStage, type DeckId } from '@/lib/data/questions';
 
 export default function SessionStartScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ deckId?: string }>();
-  const { state } = useApp();
   const colors = useColors();
+  const { relationshipStage } = usePartnersStore();
+  const { startSession } = useSessionStore();
 
-  const recommended = getDecksForStage(state.relationshipStage);
+  const recommended = getDecksForStage(relationshipStage);
   const defaultDeck = (params.deckId as DeckId) || recommended[0]?.id || 'deep-connection';
   const [selectedDeck, setSelectedDeck] = useState<DeckId>(defaultDeck);
 
@@ -94,7 +96,8 @@ export default function SessionStartScreen() {
         <Pressable
           onPress={() => {
             if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            router.replace({ pathname: '/session', params: { deckId: selectedDeck } });
+            startSession(selectedDeck);
+            router.replace('/session');
           }}
           style={({ pressed }) => [
             styles.ctaBtn,

@@ -1,30 +1,56 @@
-import React from 'react';
-import { View, Text, ScrollView, Pressable, StyleSheet, Platform } from 'react-native';
-import { useRouter } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import {
+  View,
+  Text,
+  Pressable,
+  StyleSheet,
+  ScrollView,
+  Platform,
+} from 'react-native';
+import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { ScreenContainer } from '@/components/screen-container';
-import { useApp } from '@/lib/app-context';
 import { useColors } from '@/hooks/use-colors';
-import { getDailyQuestion, getDecksForStage } from '@/lib/data/questions';
-
-function getGreeting(): string {
-  const hour = new Date().getHours();
-  if (hour < 12) return 'Good morning';
-  if (hour < 18) return 'Good afternoon';
-  return 'Good evening';
-}
+import { usePartnersStore } from '@/store/partners.store';
+import { useMoodStore, MOOD_META } from '@/store/mood.store';
+import { useSessionStore, type SessionHistoryItem } from '@/store/session.store';
+import { getDailyQuestion } from '@/lib/data/questions';
+import { trpc } from '@/lib/trpc';
 
 export default function HomeScreen() {
-  const router = useRouter();
-  const { state } = useApp();
   const colors = useColors();
-  const dailyQuestion = getDailyQuestion();
-  const recommendedDecks = getDecksForStage(state.relationshipStage);
+  const { partnerA, partnerB, isSetupComplete, streakCount, relationshipStage } = usePartnersStore();
+  const { myMood, partnerMood } = useMoodStore();
+  const sessionHistory = useSessionStore((s) => s.sessionHistory);
+
+  // Redirect to setup if not configured
+  useEffect(() => {
+    if (!isSetupComplete) {
+      router.replace('/onboarding');
+    }
+  }, [isSetupComplete]);
+
+  // AI daily question (falls back to static if not authenticated)
+  const [dailyQuestion, setDailyQuestion] = useState<string>(getDailyQuestion());
+
+  const aiDailyQuery = trpc.ai.dailyQuestion.useQuery(
+    { relationshipStage, streakCount },
+    {
+      enabled: isSetupComplete,
+      staleTime: 1000 * 60 * 60 * 8, // 8 hours
+    },
+  );
+
+  useEffect(() => {
+    if (aiDailyQuery.data?.question) {
+      setDailyQuestion(aiDailyQuery.data.question);
+    }
+  }, [aiDailyQuery.data]);
+
+  if (!isSetupComplete) return null;
 
   const greeting = getGreeting();
-  const partnerNames = state.partnerA.name && state.partnerB.name
-    ? `${state.partnerA.name} & ${state.partnerB.name}`
-    : 'You two';
+  const sessionsThisWeek = getSessionsThisWeek(sessionHistory);
 
   return (
     <ScreenContainer containerClassName="bg-background">
@@ -34,168 +60,402 @@ export default function HomeScreen() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <Text style={[styles.greeting, { color: colors.muted }]}>{greeting}</Text>
-          <Text style={[styles.names, { color: colors.foreground }]}>{partnerNames}</Text>
-          <View style={[styles.stagePill, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <Text style={[styles.stageText, { color: colors.muted }]}>
-              {state.partnerA.avatar} {state.partnerB.avatar}
-              {'  '}
-              {state.relationshipStage === 'break-the-ice'
-                ? 'Break the Ice'
-                : state.relationshipStage === 'dating'
-                ? 'Dating'
-                : 'Long-Term'}
+          <View>
+            <Text style={[styles.greeting, { color: colors.muted }]}>{greeting}</Text>
+            <Text style={[styles.coupleNames, { color: colors.foreground }]}>
+              {partnerA.avatar} {partnerA.name} & {partnerB.avatar} {partnerB.name}
             </Text>
           </View>
+          {/* Mood indicator */}
+          {myMood && (
+            <Pressable
+              onPress={() => router.push('/mood' as never)}
+              style={({ pressed }) => [
+                styles.moodBadge,
+                { backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.7 : 1 },
+              ]}
+            >
+              <Text style={styles.moodEmoji}>{MOOD_META[myMood.mood].emoji}</Text>
+            </Pressable>
+          )}
         </View>
 
-        {/* Daily Question */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionLabel, { color: colors.muted }]}>Daily Onera Question</Text>
-          <Pressable
-            onPress={() => {
-              if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              router.push('/daily');
-            }}
-            style={({ pressed }) => [
-              styles.dailyCard,
-              { backgroundColor: colors.primary + '12', borderColor: colors.primary + '40' },
-              pressed && { opacity: 0.85, transform: [{ scale: 0.99 }] },
-            ]}
-          >
-            <Text style={[styles.dailyIcon, { color: colors.primary }]}>✦</Text>
-            <Text style={[styles.dailyQuestion, { color: colors.foreground }]}>{dailyQuestion}</Text>
-            <Text style={[styles.dailyAction, { color: colors.primary }]}>Explore together →</Text>
-          </Pressable>
-        </View>
+        {/* Streak Widget */}
+        <StreakWidget
+          streakCount={streakCount}
+          sessionsThisWeek={sessionsThisWeek}
+          colors={colors}
+        />
 
-        {/* Start Session */}
-        <View style={styles.section}>
-          <Pressable
-            onPress={() => {
-              if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-              router.push('/session-start');
-            }}
-            style={({ pressed }) => [
-              styles.sessionBtn,
-              { backgroundColor: colors.primary },
-              pressed && { transform: [{ scale: 0.98 }], opacity: 0.9 },
-            ]}
-          >
-            <Text style={[styles.sessionBtnText, { color: '#FAF7F4' }]}>Begin a Session</Text>
-            <Text style={[styles.sessionBtnSub, { color: '#FAF7F4' + 'CC' }]}>8–12 guided questions together</Text>
-          </Pressable>
-        </View>
-
-        {/* Recommended Decks */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionLabel, { color: colors.muted }]}>Explore Decks</Text>
-          <View style={styles.decksGrid}>
-            {recommendedDecks.map(deck => (
-              <Pressable
-                key={deck.id}
-                onPress={() => {
-                  if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  router.push({ pathname: '/session-start', params: { deckId: deck.id } });
-                }}
-                style={({ pressed }) => [
-                  styles.deckCard,
-                  { backgroundColor: colors.surface, borderColor: colors.border },
-                  pressed && { opacity: 0.8 },
-                ]}
-              >
-                <View style={[styles.deckDot, { backgroundColor: deck.color }]} />
-                <Text style={[styles.deckName, { color: colors.foreground }]}>{deck.name}</Text>
-                <Text style={[styles.deckDesc, { color: colors.muted }]} numberOfLines={2}>{deck.description}</Text>
-              </Pressable>
-            ))}
+        {/* Daily Question Card */}
+        <Pressable
+          onPress={() => router.push('/daily')}
+          style={({ pressed }) => [
+            styles.dailyCard,
+            {
+              backgroundColor: colors.surface,
+              borderColor: colors.border,
+              opacity: pressed ? 0.9 : 1,
+              transform: [{ scale: pressed ? 0.98 : 1 }],
+            },
+          ]}
+        >
+          <View style={styles.dailyCardHeader}>
+            <Text style={[styles.dailyCardLabel, { color: colors.muted }]}>Today's question</Text>
+            {aiDailyQuery.isLoading && (
+              <Text style={[styles.aiLabel, { color: colors.primary }]}>✦ AI</Text>
+            )}
           </View>
-        </View>
+          <Text style={[styles.dailyCardQuestion, { color: colors.foreground }]}>
+            {dailyQuestion}
+          </Text>
+          <Text style={[styles.dailyCardCta, { color: colors.primary }]}>
+            Reflect together →
+          </Text>
+        </Pressable>
 
-        {/* Shared Moments Preview */}
-        {state.savedMoments.length > 0 && (
-          <View style={styles.section}>
-            <View style={styles.sectionRow}>
-              <Text style={[styles.sectionLabel, { color: colors.muted }]}>Shared Moments</Text>
-              <Pressable onPress={() => router.push('/(tabs)/moments')}>
-                <Text style={[styles.seeAll, { color: colors.primary }]}>See all</Text>
-              </Pressable>
-            </View>
-            <View style={[styles.momentPreview, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-              <Text style={[styles.momentText, { color: colors.foreground }]} numberOfLines={3}>
-                "{state.savedMoments[0].questionText}"
-              </Text>
-              <Text style={[styles.momentCount, { color: colors.muted }]}>
-                {state.savedMoments.length} moment{state.savedMoments.length !== 1 ? 's' : ''} saved
+        {/* Partner Mood */}
+        {partnerMood && partnerMood.visibleToPartner && (
+          <View style={[styles.partnerMoodCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <Text style={[styles.partnerMoodLabel, { color: colors.muted }]}>
+              {partnerB.name} is feeling
+            </Text>
+            <View style={styles.partnerMoodRow}>
+              <Text style={styles.partnerMoodEmoji}>{MOOD_META[partnerMood.mood].emoji}</Text>
+              <Text style={[styles.partnerMoodText, { color: colors.foreground }]}>
+                {MOOD_META[partnerMood.mood].label}
               </Text>
             </View>
           </View>
         )}
 
-        <View style={{ height: 20 }} />
+        {/* Session CTA */}
+        <View style={styles.sessionSection}>
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Start a session</Text>
+          <Text style={[styles.sectionSubtitle, { color: colors.muted }]}>
+            A guided conversation, just for you two.
+          </Text>
+          <Pressable
+            onPress={() => {
+              if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.push('/session-start');
+            }}
+            style={({ pressed }) => [
+              styles.sessionBtn,
+              {
+                backgroundColor: colors.primary,
+                opacity: pressed ? 0.85 : 1,
+                transform: [{ scale: pressed ? 0.97 : 1 }],
+              },
+            ]}
+          >
+            <Text style={[styles.sessionBtnText, { color: colors.background }]}>
+              Begin a conversation
+            </Text>
+          </Pressable>
+        </View>
+
+        {/* Quick mood check-in */}
+        {!myMood && (
+          <Pressable
+            onPress={() => router.push('/mood' as never)}
+            style={({ pressed }) => [
+              styles.moodCta,
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.border,
+                opacity: pressed ? 0.8 : 1,
+              },
+            ]}
+          >
+            <Text style={[styles.moodCtaText, { color: colors.muted }]}>
+              How are you feeling today? →
+            </Text>
+          </Pressable>
+        )}
+
+        {/* Recent sessions */}
+        {sessionHistory.length > 0 && (
+          <View style={styles.recentSection}>
+            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Recent sessions</Text>
+            {sessionHistory.slice(0, 3).map((s) => (
+              <View
+                key={s.id}
+                style={[styles.recentCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
+              >
+                <Text style={[styles.recentDeck, { color: colors.foreground }]}>
+                  {formatDeckName(s.deckId)}
+                </Text>
+                <Text style={[styles.recentMeta, { color: colors.muted }]}>
+                  {s.questionCount} questions · {formatDate(s.completedAt)}
+                  {s.connectionScore ? ` · ${s.connectionScore}/10` : ''}
+                </Text>
+              </View>
+            ))}
+          </View>
+        )}
       </ScrollView>
     </ScreenContainer>
   );
 }
 
+// ─── Streak Widget ────────────────────────────────────────────────────────────
+
+interface StreakWidgetProps {
+  streakCount: number;
+  sessionsThisWeek: number;
+  colors: ReturnType<typeof useColors>;
+}
+
+function StreakWidget({ streakCount, sessionsThisWeek, colors }: StreakWidgetProps) {
+  const days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+  const today = new Date().getDay(); // 0=Sun
+  const adjustedToday = today === 0 ? 6 : today - 1;
+
+  return (
+    <View style={[styles.streakCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+      <View style={styles.streakHeader}>
+        <View>
+          <Text style={[styles.streakCount, { color: colors.primary }]}>{streakCount}</Text>
+          <Text style={[styles.streakLabel, { color: colors.muted }]}>day streak</Text>
+        </View>
+        <View style={styles.streakRight}>
+          <Text style={[styles.weekLabel, { color: colors.muted }]}>{sessionsThisWeek} this week</Text>
+          <View style={styles.weekDots}>
+            {days.map((d, i) => (
+              <View key={i} style={styles.dayDot}>
+                <View
+                  style={[
+                    styles.dot,
+                    {
+                      backgroundColor:
+                        i <= adjustedToday && streakCount > 0
+                          ? colors.primary
+                          : colors.border,
+                    },
+                  ]}
+                />
+                <Text style={[styles.dayLabel, { color: colors.muted }]}>{d}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function getGreeting(): string {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'Good morning';
+  if (hour < 18) return 'Good afternoon';
+  return 'Good evening';
+}
+
+function getSessionsThisWeek(history: SessionHistoryItem[]): number {
+  const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+  return history.filter((s) => new Date(s.completedAt).getTime() > weekAgo).length;
+}
+
+function formatDeckName(deckId: string): string {
+  return deckId
+    .split('-')
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
+}
+
+function formatDate(iso: string): string {
+  const d = new Date(iso);
+  const now = new Date();
+  const diff = Math.floor((now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24));
+  if (diff === 0) return 'Today';
+  if (diff === 1) return 'Yesterday';
+  return `${diff} days ago`;
+}
+
 const styles = StyleSheet.create({
-  scroll: { flexGrow: 1, paddingHorizontal: 24, paddingBottom: 40 },
-  header: { paddingTop: 32, paddingBottom: 28, gap: 4 },
-  greeting: { fontSize: 14, fontWeight: '400', letterSpacing: 0.3 },
-  names: { fontSize: 28, fontWeight: '700', lineHeight: 36 },
-  stagePill: {
-    alignSelf: 'flex-start',
-    borderRadius: 100,
+  scroll: {
+    flexGrow: 1,
+    padding: 20,
+    paddingBottom: 40,
+    gap: 16,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    paddingTop: 8,
+    paddingBottom: 4,
+  },
+  greeting: {
+    fontSize: 14,
+    marginBottom: 2,
+  },
+  coupleNames: {
+    fontSize: 20,
+    fontWeight: '700',
+    letterSpacing: -0.3,
+  },
+  moodBadge: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    marginTop: 8,
   },
-  stageText: { fontSize: 13 },
-  section: { marginBottom: 28 },
-  sectionLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-    marginBottom: 12,
+  moodEmoji: {
+    fontSize: 22,
   },
-  sectionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  seeAll: { fontSize: 13 },
+  // Streak
+  streakCard: {
+    borderRadius: 20,
+    borderWidth: 1,
+    padding: 16,
+  },
+  streakHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  streakCount: {
+    fontSize: 40,
+    fontWeight: '700',
+    lineHeight: 44,
+  },
+  streakLabel: {
+    fontSize: 13,
+  },
+  streakRight: {
+    alignItems: 'flex-end',
+    gap: 6,
+  },
+  weekLabel: {
+    fontSize: 13,
+  },
+  weekDots: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  dayDot: {
+    alignItems: 'center',
+    gap: 4,
+  },
+  dot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  dayLabel: {
+    fontSize: 10,
+  },
+  // Daily card
   dailyCard: {
     borderRadius: 20,
     borderWidth: 1,
-    padding: 24,
-    gap: 12,
+    padding: 20,
+    gap: 10,
   },
-  dailyIcon: { fontSize: 20 },
-  dailyQuestion: { fontSize: 17, lineHeight: 26, fontWeight: '500' },
-  dailyAction: { fontSize: 14, fontWeight: '500' },
+  dailyCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  dailyCardLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  aiLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  dailyCardQuestion: {
+    fontSize: 18,
+    fontWeight: '500',
+    lineHeight: 26,
+  },
+  dailyCardCta: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  // Partner mood
+  partnerMoodCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 14,
+    gap: 6,
+  },
+  partnerMoodLabel: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  partnerMoodRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  partnerMoodEmoji: {
+    fontSize: 22,
+  },
+  partnerMoodText: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  // Session CTA
+  sessionSection: {
+    gap: 8,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    letterSpacing: -0.3,
+  },
+  sectionSubtitle: {
+    fontSize: 14,
+    lineHeight: 20,
+  },
   sessionBtn: {
-    borderRadius: 20,
-    paddingVertical: 24,
-    paddingHorizontal: 28,
+    height: 56,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 4,
+  },
+  sessionBtnText: {
+    fontSize: 17,
+    fontWeight: '600',
+    letterSpacing: 0.2,
+  },
+  // Mood CTA
+  moodCta: {
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 14,
+    alignItems: 'center',
+  },
+  moodCtaText: {
+    fontSize: 15,
+  },
+  // Recent sessions
+  recentSection: {
+    gap: 10,
+  },
+  recentCard: {
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 14,
     gap: 4,
   },
-  sessionBtnText: { fontSize: 20, fontWeight: '700' },
-  sessionBtnSub: { fontSize: 14 },
-  decksGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  deckCard: {
-    width: '47%',
-    borderRadius: 16,
-    borderWidth: 1,
-    padding: 16,
-    gap: 8,
+  recentDeck: {
+    fontSize: 15,
+    fontWeight: '600',
   },
-  deckDot: { width: 10, height: 10, borderRadius: 5 },
-  deckName: { fontSize: 15, fontWeight: '600' },
-  deckDesc: { fontSize: 12, lineHeight: 18 },
-  momentPreview: {
-    borderRadius: 16,
-    borderWidth: 1,
-    padding: 20,
-    gap: 8,
+  recentMeta: {
+    fontSize: 13,
+    lineHeight: 18,
   },
-  momentText: { fontSize: 15, lineHeight: 22, fontStyle: 'italic' },
-  momentCount: { fontSize: 12 },
 });

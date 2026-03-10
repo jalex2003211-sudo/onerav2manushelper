@@ -12,18 +12,21 @@ import {
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { ScreenContainer } from '@/components/screen-container';
-import { useApp } from '@/lib/app-context';
 import { useColors } from '@/hooks/use-colors';
+import { useSessionStore } from '@/store/session.store';
+import { usePartnersStore } from '@/store/partners.store';
 
 const SLIDER_WIDTH = Dimensions.get('window').width - 96;
 
 export default function SessionEndScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ count?: string }>();
-  const { state } = useApp();
+  const { partnerA, partnerB, incrementStreak } = usePartnersStore();
+  const { sessionHistory, setConnectionScore } = useSessionStore();
+  const lastSession = sessionHistory[0] ?? null;
   const colors = useColors();
 
-  const count = parseInt(params.count ?? '10', 10);
+  const count = lastSession?.questionCount ?? parseInt(params.count ?? '10', 10);
   const [connectionValue, setConnectionValue] = useState(7);
   const sliderAnim = useRef(new Animated.Value((7 / 10) * SLIDER_WIDTH)).current;
 
@@ -76,7 +79,7 @@ export default function SessionEndScreen() {
         <View style={styles.heading}>
           <Text style={[styles.title, { color: colors.foreground }]}>Session Complete</Text>
           <Text style={[styles.subtitle, { color: colors.muted }]}>
-            {state.partnerA.name} & {state.partnerB.name}
+            {partnerA.name} & {partnerB.name}
           </Text>
         </View>
 
@@ -137,6 +140,8 @@ export default function SessionEndScreen() {
         <Pressable
           onPress={() => {
             if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            setConnectionScore(connectionValue);
+            incrementStreak();
             router.replace('/(tabs)');
           }}
           style={({ pressed }) => [

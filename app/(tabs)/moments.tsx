@@ -2,10 +2,10 @@ import React from 'react';
 import { View, Text, FlatList, Pressable, StyleSheet, Platform } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { ScreenContainer } from '@/components/screen-container';
-import { useApp } from '@/lib/app-context';
 import { useColors } from '@/hooks/use-colors';
 import { DECKS } from '@/lib/data/questions';
-import type { SavedMoment } from '@/lib/app-context';
+import { useMomentsStore } from '@/store/moments.store';
+import type { SavedMoment } from '@/store/moments.store';
 
 function MomentCard({ moment, onRemove }: { moment: SavedMoment; onRemove: () => void }) {
   const colors = useColors();
@@ -43,7 +43,7 @@ function MomentCard({ moment, onRemove }: { moment: SavedMoment; onRemove: () =>
 }
 
 export default function MomentsScreen() {
-  const { state, removeMoment } = useApp();
+  const { moments, removeMoment } = useMomentsStore();
   const colors = useColors();
 
   return (
@@ -55,7 +55,7 @@ export default function MomentsScreen() {
         </Text>
       </View>
 
-      {state.savedMoments.length === 0 ? (
+      {moments.length === 0 ? (
         <View style={styles.emptyState}>
           <Text style={[styles.emptyIcon, { color: colors.muted }]}>♥</Text>
           <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Nothing saved yet</Text>
@@ -65,7 +65,7 @@ export default function MomentsScreen() {
         </View>
       ) : (
         <FlatList
-          data={state.savedMoments}
+          data={moments}
           keyExtractor={item => item.id}
           renderItem={({ item }) => (
             <MomentCard moment={item} onRemove={() => removeMoment(item.id)} />

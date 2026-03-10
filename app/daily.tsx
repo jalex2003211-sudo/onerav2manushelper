@@ -3,20 +3,20 @@ import { View, Text, Pressable, StyleSheet, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { ScreenContainer } from '@/components/screen-container';
-import { useApp } from '@/lib/app-context';
 import { useColors } from '@/hooks/use-colors';
+import { usePartnersStore } from '@/store/partners.store';
 import { getDailyQuestion } from '@/lib/data/questions';
 
 export default function DailyScreen() {
   const router = useRouter();
-  const { state } = useApp();
   const colors = useColors();
+  const { partnerA, partnerB } = usePartnersStore();
   const question = getDailyQuestion();
 
   const [turn, setTurn] = useState<'A' | 'B' | 'done'>('A');
 
-  const currentPartner = turn === 'A' ? state.partnerA : state.partnerB;
-  const otherPartner = turn === 'A' ? state.partnerB : state.partnerA;
+  const currentPartner = turn === 'A' ? partnerA : partnerB;
+  const otherPartner = turn === 'A' ? partnerB : partnerA;
 
   function handleNext() {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -67,7 +67,7 @@ export default function DailyScreen() {
         ) : (
           <View style={[styles.doneCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <Text style={[styles.doneText, { color: colors.foreground }]}>
-              {state.partnerA.avatar} {state.partnerA.name} & {state.partnerB.avatar} {state.partnerB.name}
+              {partnerA.avatar} {partnerA.name} & {partnerB.avatar} {partnerB.name}
             </Text>
             <Text style={[styles.doneSub, { color: colors.muted }]}>
               Thank you for sharing this moment together.

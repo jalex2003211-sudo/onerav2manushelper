@@ -10,9 +10,14 @@ import {
   Alert,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import { router } from 'expo-router';
 import { ScreenContainer } from '@/components/screen-container';
-import { useApp } from '@/lib/app-context';
 import { useColors } from '@/hooks/use-colors';
+import { usePartnersStore } from '@/store/partners.store';
+import { useSessionStore } from '@/store/session.store';
+import { useMomentsStore } from '@/store/moments.store';
+import { useMoodStore } from '@/store/mood.store';
+import { useInsightsStore } from '@/store/insights.store';
 import type { RelationshipStage } from '@/lib/data/questions';
 
 const AVATARS = ['🌸', '🌿', '🌙', '☀️', '🌊', '🍃', '🌺', '🦋', '🌻', '🕊️', '🌹', '🌾'];
@@ -24,14 +29,16 @@ const STAGES: { id: RelationshipStage; label: string }[] = [
 ];
 
 export default function SettingsScreen() {
-  const { state, updatePartners, updateStage, reset } = useApp();
   const colors = useColors();
+  const { partnerA, partnerB, relationshipStage, streakCount, updatePartners, updateStage, reset: resetPartners } = usePartnersStore();
+  const { sessionHistory, reset: resetSession } = useSessionStore();
+  const { moments } = useMomentsStore();
 
-  const [nameA, setNameA] = useState(state.partnerA.name);
-  const [nameB, setNameB] = useState(state.partnerB.name);
-  const [avatarA, setAvatarA] = useState(state.partnerA.avatar);
-  const [avatarB, setAvatarB] = useState(state.partnerB.avatar);
-  const [stage, setStage] = useState<RelationshipStage>(state.relationshipStage);
+  const [nameA, setNameA] = useState(partnerA.name);
+  const [nameB, setNameB] = useState(partnerB.name);
+  const [avatarA, setAvatarA] = useState(partnerA.avatar);
+  const [avatarB, setAvatarB] = useState(partnerB.avatar);
+  const [stage, setStage] = useState<RelationshipStage>(relationshipStage);
   const [saved, setSaved] = useState(false);
 
   function handleSave() {
@@ -46,7 +53,8 @@ export default function SettingsScreen() {
   function handleReset() {
     if (Platform.OS === 'web') {
       if (window.confirm('Reset all data? This cannot be undone.')) {
-        reset();
+        resetPartners(); resetSession();
+        router.replace('/onboarding');
       }
     } else {
       Alert.alert(
@@ -59,7 +67,8 @@ export default function SettingsScreen() {
             style: 'destructive',
             onPress: () => {
               if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-              reset();
+              resetPartners(); resetSession();
+              router.replace('/onboarding');
             },
           },
         ]
@@ -185,15 +194,15 @@ export default function SettingsScreen() {
           <Text style={[styles.sectionLabel, { color: colors.muted }]}>Your Journey</Text>
           <View style={[styles.statsRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={styles.stat}>
-              <Text style={[styles.statNum, { color: colors.primary }]}>{state.savedMoments.length}</Text>
+              <Text style={[styles.statNum, { color: colors.primary }]}>{moments.length}</Text>
               <Text style={[styles.statLabel, { color: colors.muted }]}>Moments saved</Text>
             </View>
             <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
             <View style={styles.stat}>
               <Text style={[styles.statNum, { color: colors.primary }]}>
-                {state.lastSessionDate ? '✓' : '—'}
+                {sessionHistory.length}
               </Text>
-              <Text style={[styles.statLabel, { color: colors.muted }]}>Last session</Text>
+              <Text style={[styles.statLabel, { color: colors.muted }]}>Sessions done</Text>
             </View>
           </View>
         </View>

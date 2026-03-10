@@ -1,19 +1,23 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import {
   View,
   Text,
   Pressable,
   StyleSheet,
-  Platform,
   Dimensions,
+  Platform,
+  ScrollView,
   Animated,
 } from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { ScreenContainer } from '@/components/screen-container';
-import { useApp } from '@/lib/app-context';
 import { useColors } from '@/hooks/use-colors';
-import { buildSession, DECKS, type DeckId, type Phase, type Question } from '@/lib/data/questions';
+import { useSessionStore } from '@/store/session.store';
+import { usePartnersStore } from '@/store/partners.store';
+import { useMomentsStore } from '@/store/moments.store';
+import { DECKS, type Phase } from '@/lib/data/questions';
+import { trpc } from '@/lib/trpc';
 import { useKeepAwake } from 'expo-keep-awake';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -33,228 +37,297 @@ const PHASE_COLORS: Record<Phase, string> = {
   reflection: '#7A8FA0',
 };
 
-function getPhaseIndex(phase: Phase): number {
-  return ['warmup', 'explore', 'deep', 'reflection'].indexOf(phase);
-}
-
 export default function SessionScreen() {
   useKeepAwake();
-  const router = useRouter();
-  const params = useLocalSearchParams<{ deckId?: string }>();
-  const { state, saveMoment, isMomentSaved, recordSession } = useApp();
   const colors = useColors();
 
-  const deckId = (params.deckId as DeckId) || 'deep-connection';
-  const deck = DECKS.find(d => d.id === deckId)!;
+  const {
+    questions,
+    currentIndex,
+    currentPhase,
+    turnOwner,
+    deckId,
+    aiFollowUp,
+    isLoadingAI,
+    isActive,
+    advanceQuestion,
+    switchTurn,
+    setAIFollowUp,
+    setLoadingAI,
+    endSession,
+  } = useSessionStore();
 
-  const [questions] = useState<Question[]>(() => buildSession(deckId, 10));
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [isRevealed, setIsRevealed] = useState(false);
-  const [turnPhase, setTurnPhase] = useState<'A' | 'B'>('A');
-  const [savedThisCard, setSavedThisCard] = useState(false);
-  const [longPressAnim] = useState(new Animated.Value(1));
+  const { partnerA, partnerB, relationshipStage } = usePartnersStore();
+  const { addMoment, removeMoment, isSaved } = useMomentsStore();
 
-  const flipAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(0)).current;
+  // Redirect if no active session
+  useEffect(() => {
+    if (!isActive || questions.length === 0) {
+      router.replace('/(tabs)');
+    }
+  }, [isActive, questions.length]);
 
   const currentQuestion = questions[currentIndex];
-  const currentPhase = currentQuestion?.phase ?? 'warmup';
-  const phaseColor = PHASE_COLORS[currentPhase];
-  const totalQuestions = questions.length;
-  const isLastQuestion = currentIndex === totalQuestions - 1;
+  const isLastQuestion = currentIndex >= questions.length - 1;
+  const phaseColor = PHASE_COLORS[currentPhase as Phase] ?? colors.primary;
+  const deck = DECKS.find((d) => d.id === deckId);
 
-  const currentPartner = turnPhase === 'A' ? state.partnerA : state.partnerB;
-  const otherPartner = turnPhase === 'A' ? state.partnerB : state.partnerA;
+  // Slide animation
+  const slideAnim = useRef(new Animated.Value(0)).current;
+  const opacityAnim = useRef(new Animated.Value(1)).current;
 
-  const revealCard = useCallback(() => {
-    if (isRevealed) return;
+  const animateCardChange = useCallback((onComplete: () => void) => {
+    Animated.parallel([
+      Animated.timing(slideAnim, { toValue: -SCREEN_WIDTH * 0.3, duration: 180, useNativeDriver: true }),
+      Animated.timing(opacityAnim, { toValue: 0, duration: 180, useNativeDriver: true }),
+    ]).start(() => {
+      onComplete();
+      slideAnim.setValue(SCREEN_WIDTH * 0.3);
+      Animated.parallel([
+        Animated.timing(slideAnim, { toValue: 0, duration: 220, useNativeDriver: true }),
+        Animated.timing(opacityAnim, { toValue: 1, duration: 220, useNativeDriver: true }),
+      ]).start();
+    });
+  }, [slideAnim, opacityAnim]);
+
+  // AI follow-up mutation
+  const followUpMutation = trpc.ai.followUp.useMutation({
+    onSuccess: (data) => {
+      setAIFollowUp(data.question);
+      setLoadingAI(false);
+    },
+    onError: () => {
+      setLoadingAI(false);
+    },
+  });
+
+  const handleGetAIFollowUp = () => {
+    if (!currentQuestion || isLoadingAI) return;
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setIsRevealed(true);
-    Animated.timing(flipAnim, {
-      toValue: 1,
-      duration: 300,
-      useNativeDriver: true,
-    }).start();
-  }, [isRevealed, flipAnim]);
+    setLoadingAI(true);
+    setAIFollowUp(null);
+    followUpMutation.mutate({
+      originalQuestion: currentQuestion.text,
+      phase: currentQuestion.phase,
+      relationshipStage,
+      deckId: currentQuestion.deck,
+    });
+  };
 
-  const advanceQuestion = useCallback(() => {
-    if (!isRevealed) return;
-    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-
+  const handleNext = () => {
     if (isLastQuestion) {
-      recordSession();
-      router.replace({ pathname: '/session-end', params: { count: String(totalQuestions) } });
+      endSession();
+      if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      router.replace('/session-end');
       return;
     }
-
-    // Slide out
-    Animated.timing(slideAnim, {
-      toValue: -SCREEN_WIDTH,
-      duration: 250,
-      useNativeDriver: true,
-    }).start(() => {
-      setCurrentIndex(prev => prev + 1);
-      setIsRevealed(false);
-      setSavedThisCard(false);
-      // Switch turns
-      setTurnPhase(prev => (prev === 'A' ? 'B' : 'A'));
-      flipAnim.setValue(0);
-      slideAnim.setValue(SCREEN_WIDTH * 0.3);
-      // Slide in
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 250,
-        useNativeDriver: true,
-      }).start();
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    animateCardChange(() => {
+      advanceQuestion();
     });
-  }, [isRevealed, isLastQuestion, slideAnim, flipAnim, recordSession, router, totalQuestions]);
+  };
 
-  const handleLongPress = useCallback(() => {
-    if (!currentQuestion) return;
+  const handleSwitchTurn = () => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    saveMoment(currentQuestion);
-    setSavedThisCard(true);
-    Animated.sequence([
-      Animated.timing(longPressAnim, { toValue: 0.94, duration: 100, useNativeDriver: true }),
-      Animated.timing(longPressAnim, { toValue: 1, duration: 200, useNativeDriver: true }),
-    ]).start();
-  }, [currentQuestion, saveMoment, longPressAnim]);
+    switchTurn();
+  };
 
-  const cardOpacity = flipAnim.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0.6, 0.3, 1] });
-  const cardScale = flipAnim.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0.97, 0.95, 1] });
+  const handleToggleMoment = () => {
+    if (!currentQuestion) return;
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (isSaved(currentQuestion.id)) {
+      removeMoment(currentQuestion.id);
+    } else {
+      addMoment({
+        id: currentQuestion.id,
+        questionId: currentQuestion.id,
+        questionText: currentQuestion.text,
+        deckId: currentQuestion.deck,
+      });
+    }
+  };
 
   if (!currentQuestion) return null;
 
+  const momentSaved = isSaved(currentQuestion.id);
+  const progress = (currentIndex + 1) / questions.length;
+  const currentPartner = turnOwner === 'A' ? partnerA : partnerB;
+  const otherPartner = turnOwner === 'A' ? partnerB : partnerA;
+
   return (
-    <ScreenContainer edges={['top', 'bottom', 'left', 'right']} containerClassName="bg-background">
+    <ScreenContainer containerClassName="bg-background" edges={['top', 'left', 'right']}>
       <View style={styles.container}>
-        {/* Top Bar */}
+        {/* Top bar */}
         <View style={styles.topBar}>
           <Pressable
-            onPress={() => router.back()}
-            style={({ pressed }) => [styles.exitBtn, pressed && { opacity: 0.6 }]}
+            onPress={() => {
+              if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              endSession();
+              router.replace('/(tabs)');
+            }}
+            style={({ pressed }) => [styles.exitBtn, { opacity: pressed ? 0.6 : 1 }]}
           >
-            <Text style={[styles.exitText, { color: colors.muted }]}>✕</Text>
+            <Text style={[styles.exitText, { color: colors.muted }]}>End</Text>
           </Pressable>
 
-          <View style={styles.progressContainer}>
-            {questions.map((q, i) => (
-              <View
-                key={q.id}
-                style={[
-                  styles.progressDot,
-                  {
-                    backgroundColor: i < currentIndex
-                      ? phaseColor
-                      : i === currentIndex
-                      ? phaseColor
-                      : colors.border,
-                    opacity: i === currentIndex ? 1 : i < currentIndex ? 0.6 : 0.3,
-                    width: i === currentIndex ? 20 : 6,
-                  },
-                ]}
-              />
-            ))}
+          <View style={styles.phaseChip}>
+            <View style={[styles.phaseDot, { backgroundColor: phaseColor }]} />
+            <Text style={[styles.phaseLabel, { color: phaseColor }]}>
+              {PHASE_LABELS[currentPhase as Phase] ?? currentPhase}
+            </Text>
           </View>
 
-          <Text style={[styles.counter, { color: colors.muted }]}>
-            {currentIndex + 1}/{totalQuestions}
+          <Text style={[styles.progress, { color: colors.muted }]}>
+            {currentIndex + 1}/{questions.length}
           </Text>
         </View>
 
-        {/* Phase Indicator */}
-        <View style={styles.phaseRow}>
-          {(['warmup', 'explore', 'deep', 'reflection'] as Phase[]).map((p, i) => (
-            <View
-              key={p}
-              style={[
-                styles.phaseChip,
-                {
-                  backgroundColor: p === currentPhase ? phaseColor + '25' : 'transparent',
-                  borderColor: p === currentPhase ? phaseColor : 'transparent',
-                },
-              ]}
-            >
-              <Text
-                style={[
-                  styles.phaseText,
-                  { color: p === currentPhase ? phaseColor : colors.muted + '80' },
-                ]}
-              >
-                {PHASE_LABELS[p]}
-              </Text>
-            </View>
-          ))}
+        {/* Progress bar */}
+        <View style={[styles.progressBar, { backgroundColor: colors.border }]}>
+          <View
+            style={[
+              styles.progressFill,
+              { backgroundColor: phaseColor, width: `${progress * 100}%` },
+            ]}
+          />
         </View>
 
-        {/* Card Area */}
-        <View style={styles.cardArea}>
+        {/* Turn indicator */}
+        <View style={styles.turnRow}>
+          {([partnerA, partnerB] as const).map((partner, i) => {
+            const isActiveTurn = (i === 0 && turnOwner === 'A') || (i === 1 && turnOwner === 'B');
+            return (
+              <View
+                key={i}
+                style={[
+                  styles.turnChip,
+                  {
+                    backgroundColor: isActiveTurn ? phaseColor + '22' : colors.surface,
+                    borderColor: isActiveTurn ? phaseColor : colors.border,
+                  },
+                ]}
+              >
+                <Text style={styles.turnEmoji}>{partner.avatar}</Text>
+                <Text style={[styles.turnName, { color: isActiveTurn ? phaseColor : colors.muted }]}>
+                  {partner.name}
+                </Text>
+              </View>
+            );
+          })}
+        </View>
+
+        {/* Question card */}
+        <ScrollView
+          style={styles.cardScroll}
+          contentContainerStyle={styles.cardScrollContent}
+          showsVerticalScrollIndicator={false}
+        >
           <Animated.View
             style={[
-              styles.card,
-              {
-                backgroundColor: colors.surface,
-                borderColor: isRevealed ? phaseColor + '40' : colors.border,
-                transform: [{ translateX: slideAnim }, { scale: Animated.multiply(cardScale, longPressAnim) }],
-                opacity: cardOpacity,
-                shadowColor: phaseColor,
-              },
+              styles.questionCard,
+              { backgroundColor: colors.surface, borderColor: colors.border },
+              { transform: [{ translateX: slideAnim }], opacity: opacityAnim },
             ]}
           >
             {/* Phase strip */}
             <View style={[styles.phaseStrip, { backgroundColor: phaseColor }]} />
 
-            {!isRevealed ? (
-              <Pressable
-                onPress={revealCard}
-                style={styles.cardInner}
-              >
-                <Text style={[styles.deckLabel, { color: colors.muted }]}>{deck.name}</Text>
-                <Text style={[styles.tapHint, { color: colors.muted }]}>Tap to reveal</Text>
-                <Text style={[styles.tapIcon, { color: phaseColor }]}>✦</Text>
-              </Pressable>
-            ) : (
-              <Pressable
-                onPress={advanceQuestion}
-                onLongPress={handleLongPress}
-                delayLongPress={500}
-                style={styles.cardInner}
-              >
-                <Text style={[styles.phaseLabel, { color: phaseColor }]}>{PHASE_LABELS[currentPhase]}</Text>
-                <Text style={[styles.questionText, { color: colors.foreground }]}>
-                  {currentQuestion.text}
-                </Text>
-                {savedThisCard && (
-                  <View style={[styles.savedBadge, { backgroundColor: phaseColor + '20' }]}>
-                    <Text style={[styles.savedText, { color: phaseColor }]}>♥ Saved to Moments</Text>
-                  </View>
-                )}
-                <Text style={[styles.swipeHint, { color: colors.muted }]}>
-                  {isLastQuestion ? 'Tap to finish session' : 'Tap to continue · Hold to save'}
-                </Text>
-              </Pressable>
-            )}
-          </Animated.View>
-        </View>
+            <View style={styles.cardContent}>
+              {/* Deck label */}
+              <Text style={[styles.deckLabel, { color: colors.muted }]}>
+                {deck?.name ?? deckId}
+              </Text>
 
-        {/* Turn Indicator */}
-        <View style={[styles.turnBanner, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          {!isRevealed ? (
-            <Text style={[styles.turnText, { color: colors.foreground }]}>
-              <Text style={{ color: phaseColor }}>{currentPartner.avatar} {currentPartner.name}</Text>
-              {'  '}—  tap the card to begin
-            </Text>
-          ) : (
-            <View style={styles.turnContent}>
-              <Text style={[styles.turnText, { color: colors.foreground }]}>
-                <Text style={{ color: phaseColor }}>{currentPartner.avatar} {currentPartner.name}</Text>
-                {'  '}answers first
+              {/* Main question */}
+              <Text style={[styles.questionText, { color: colors.foreground }]}>
+                {currentQuestion.text}
               </Text>
-              <Text style={[styles.turnSub, { color: colors.muted }]}>
-                Then ask {otherPartner.avatar} {otherPartner.name} the same question
+
+              {/* Turn hint */}
+              <Text style={[styles.turnHint, { color: colors.muted }]}>
+                {currentPartner.avatar} {currentPartner.name} answers first · then {otherPartner.avatar} {otherPartner.name}
               </Text>
+
+              {/* AI follow-up */}
+              {aiFollowUp && (
+                <View style={[styles.aiFollowUp, { backgroundColor: phaseColor + '15', borderColor: phaseColor + '40' }]}>
+                  <Text style={[styles.aiFollowUpLabel, { color: phaseColor }]}>✦ AI Follow-up</Text>
+                  <Text style={[styles.aiFollowUpText, { color: colors.foreground }]}>
+                    {aiFollowUp}
+                  </Text>
+                </View>
+              )}
+
+              {/* Action row */}
+              <View style={styles.cardActions}>
+                <Pressable
+                  onPress={handleToggleMoment}
+                  style={({ pressed }) => [
+                    styles.actionBtn,
+                    {
+                      backgroundColor: momentSaved ? phaseColor + '22' : colors.background,
+                      borderColor: momentSaved ? phaseColor : colors.border,
+                      opacity: pressed ? 0.7 : 1,
+                    },
+                  ]}
+                >
+                  <Text style={[styles.actionBtnText, { color: momentSaved ? phaseColor : colors.muted }]}>
+                    {momentSaved ? '♥ Saved' : '♡ Save'}
+                  </Text>
+                </Pressable>
+
+                <Pressable
+                  onPress={handleGetAIFollowUp}
+                  disabled={isLoadingAI}
+                  style={({ pressed }) => [
+                    styles.actionBtn,
+                    {
+                      backgroundColor: colors.background,
+                      borderColor: colors.border,
+                      opacity: pressed || isLoadingAI ? 0.6 : 1,
+                    },
+                  ]}
+                >
+                  <Text style={[styles.actionBtnText, { color: colors.muted }]}>
+                    {isLoadingAI ? '✦ ...' : '✦ Go deeper'}
+                  </Text>
+                </Pressable>
+              </View>
             </View>
-          )}
+          </Animated.View>
+        </ScrollView>
+
+        {/* Bottom controls */}
+        <View style={styles.bottomControls}>
+          <Pressable
+            onPress={handleSwitchTurn}
+            style={({ pressed }) => [
+              styles.switchBtn,
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.border,
+                opacity: pressed ? 0.8 : 1,
+              },
+            ]}
+          >
+            <Text style={[styles.switchBtnText, { color: colors.muted }]}>Switch turn</Text>
+          </Pressable>
+
+          <Pressable
+            onPress={handleNext}
+            style={({ pressed }) => [
+              styles.nextBtn,
+              {
+                backgroundColor: phaseColor,
+                opacity: pressed ? 0.85 : 1,
+                transform: [{ scale: pressed ? 0.97 : 1 }],
+              },
+            ]}
+          >
+            <Text style={[styles.nextBtnText, { color: '#FAF7F4' }]}>
+              {isLastQuestion ? 'Finish session' : 'Next question'}
+            </Text>
+          </Pressable>
         </View>
       </View>
     </ScreenContainer>
@@ -262,93 +335,168 @@ export default function SessionScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingHorizontal: 24, paddingBottom: 16 },
+  container: {
+    flex: 1,
+    paddingHorizontal: 20,
+    paddingBottom: 32,
+    gap: 12,
+  },
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingTop: 8,
-    paddingBottom: 16,
-    gap: 12,
   },
-  exitBtn: { padding: 4 },
-  exitText: { fontSize: 18 },
-  progressContainer: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    justifyContent: 'center',
+  exitBtn: {
+    paddingVertical: 4,
+    paddingHorizontal: 2,
   },
-  progressDot: {
-    height: 6,
-    borderRadius: 3,
-  },
-  counter: { fontSize: 13, fontWeight: '500', minWidth: 32, textAlign: 'right' },
-  phaseRow: {
-    flexDirection: 'row',
-    gap: 6,
-    marginBottom: 20,
-    flexWrap: 'wrap',
+  exitText: {
+    fontSize: 15,
   },
   phaseChip: {
-    borderRadius: 100,
-    borderWidth: 1,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-  },
-  phaseText: { fontSize: 12, fontWeight: '500' },
-  cardArea: {
-    flex: 1,
-    justifyContent: 'center',
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: 6,
   },
-  card: {
-    width: CARD_WIDTH,
-    minHeight: 320,
-    borderRadius: 28,
-    borderWidth: 1.5,
+  phaseDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  phaseLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  progress: {
+    fontSize: 14,
+  },
+  progressBar: {
+    height: 3,
+    borderRadius: 2,
     overflow: 'hidden',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.12,
-    shadowRadius: 24,
-    elevation: 8,
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 2,
+  },
+  turnRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  turnChip: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  turnEmoji: {
+    fontSize: 18,
+  },
+  turnName: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  cardScroll: {
+    flex: 1,
+  },
+  cardScrollContent: {
+    flexGrow: 1,
+  },
+  questionCard: {
+    borderRadius: 24,
+    borderWidth: 1,
+    overflow: 'hidden',
+    flex: 1,
+    minHeight: 300,
   },
   phaseStrip: {
     height: 4,
     width: '100%',
   },
-  cardInner: {
-    flex: 1,
-    padding: 32,
-    justifyContent: 'center',
-    alignItems: 'center',
+  cardContent: {
+    padding: 24,
     gap: 16,
-    minHeight: 316,
+    flex: 1,
   },
-  deckLabel: { fontSize: 12, fontWeight: '600', letterSpacing: 1, textTransform: 'uppercase' },
-  tapHint: { fontSize: 16, fontWeight: '400' },
-  tapIcon: { fontSize: 28 },
-  phaseLabel: { fontSize: 12, fontWeight: '600', letterSpacing: 1, textTransform: 'uppercase' },
+  deckLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
   questionText: {
-    fontSize: 20,
-    lineHeight: 32,
+    fontSize: 22,
     fontWeight: '500',
-    textAlign: 'center',
+    lineHeight: 32,
+    flex: 1,
   },
-  savedBadge: {
-    borderRadius: 100,
-    paddingHorizontal: 14,
-    paddingVertical: 6,
+  turnHint: {
+    fontSize: 13,
+    lineHeight: 18,
   },
-  savedText: { fontSize: 13, fontWeight: '500' },
-  swipeHint: { fontSize: 12, marginTop: 8 },
-  turnBanner: {
-    borderRadius: 20,
+  aiFollowUp: {
+    borderRadius: 14,
     borderWidth: 1,
-    padding: 20,
-    marginTop: 16,
+    padding: 14,
+    gap: 6,
   },
-  turnContent: { gap: 4 },
-  turnText: { fontSize: 16, fontWeight: '500', lineHeight: 24 },
-  turnSub: { fontSize: 13, lineHeight: 20 },
+  aiFollowUpLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  aiFollowUpText: {
+    fontSize: 16,
+    lineHeight: 24,
+    fontStyle: 'italic',
+  },
+  cardActions: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  actionBtn: {
+    flex: 1,
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  actionBtnText: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  bottomControls: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  switchBtn: {
+    flex: 1,
+    height: 52,
+    borderRadius: 14,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  switchBtnText: {
+    fontSize: 15,
+    fontWeight: '500',
+  },
+  nextBtn: {
+    flex: 2,
+    height: 52,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  nextBtnText: {
+    fontSize: 16,
+    fontWeight: '600',
+    letterSpacing: 0.2,
+  },
 });
