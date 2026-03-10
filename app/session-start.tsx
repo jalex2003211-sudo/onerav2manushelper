@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, Pressable, StyleSheet, Platform } from 'react-native';
+import { View, Text, ScrollView, Pressable, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { ScreenContainer } from '@/components/screen-container';
@@ -93,21 +93,18 @@ export default function SessionStartScreen() {
         </View>
 
         {/* CTA */}
-        <Pressable
+        <TouchableOpacity
           onPress={() => {
             if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
             startSession(selectedDeck);
             router.replace('/session');
           }}
-          style={({ pressed }) => [
-            styles.ctaBtn,
-            { backgroundColor: colors.primary },
-            pressed && { transform: [{ scale: 0.98 }], opacity: 0.9 },
-          ]}
+          activeOpacity={0.85}
+          style={[styles.ctaBtn, { backgroundColor: colors.primary }]}
         >
           <Text style={[styles.ctaText, { color: '#FAF7F4' }]}>Begin Session</Text>
           <Text style={[styles.ctaSub, { color: '#FAF7F4CC' }]}>{deck.name}</Text>
-        </Pressable>
+        </TouchableOpacity>
       </ScrollView>
     </ScreenContainer>
   );

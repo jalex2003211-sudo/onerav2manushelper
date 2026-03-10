@@ -3,6 +3,7 @@ import {
   View,
   Text,
   Pressable,
+  TouchableOpacity,
   StyleSheet,
   ScrollView,
   ActivityIndicator,
@@ -101,16 +102,11 @@ export default function InsightsScreen() {
         </View>
 
         {/* Generate button */}
-        <Pressable
+        <TouchableOpacity
           onPress={handleGenerate}
           disabled={isGenerating}
-          style={({ pressed }) => [
-            styles.generateBtn,
-            {
-              backgroundColor: colors.primary,
-              opacity: pressed || isGenerating ? 0.7 : 1,
-            },
-          ]}
+          activeOpacity={0.7}
+          style={[styles.generateBtn, { backgroundColor: colors.primary, opacity: isGenerating ? 0.7 : 1 }]}
         >
           {isGenerating ? (
             <View style={styles.generatingRow}>
@@ -124,7 +120,7 @@ export default function InsightsScreen() {
               ✦ Generate weekly insight
             </Text>
           )}
-        </Pressable>
+        </TouchableOpacity>
 
         {error && (
           <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>

@@ -5,6 +5,7 @@ import {
   TextInput,
   ScrollView,
   Pressable,
+  TouchableOpacity,
   StyleSheet,
   Platform,
 } from 'react-native';
@@ -173,18 +174,15 @@ export default function SetupScreen() {
               <Text style={[styles.backText, { color: colors.muted }]}>← Back</Text>
             </Pressable>
           )}
-          <Pressable
+          <TouchableOpacity
             onPress={handleContinue}
-            style={({ pressed }) => [
-              styles.ctaBtn,
-              { backgroundColor: canContinue || step === 'stage' ? colors.primary : colors.border },
-              pressed && { transform: [{ scale: 0.97 }] },
-            ]}
+            activeOpacity={0.85}
+            style={[styles.ctaBtn, { backgroundColor: canContinue || step === 'stage' ? colors.primary : colors.border }]}
           >
             <Text style={[styles.ctaText, { color: '#FAF7F4' }]}>
               {step === 'partners' ? 'Continue' : "Let's Begin"}
             </Text>
-          </Pressable>
+          </TouchableOpacity>
         </View>
       </ScrollView>
     </ScreenContainer>

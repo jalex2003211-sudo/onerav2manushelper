@@ -4,6 +4,7 @@ import {
   Text,
   TextInput,
   Pressable,
+  TouchableOpacity,
   ScrollView,
   StyleSheet,
   Platform,
@@ -176,18 +177,15 @@ export default function SettingsScreen() {
         </View>
 
         {/* Save */}
-        <Pressable
+        <TouchableOpacity
           onPress={handleSave}
-          style={({ pressed }) => [
-            styles.saveBtn,
-            { backgroundColor: saved ? colors.success : colors.primary },
-            pressed && { transform: [{ scale: 0.98 }], opacity: 0.9 },
-          ]}
+          activeOpacity={0.85}
+          style={[styles.saveBtn, { backgroundColor: saved ? colors.success : colors.primary }]}
         >
           <Text style={[styles.saveBtnText, { color: '#FAF7F4' }]}>
             {saved ? '✓ Saved' : 'Save Changes'}
           </Text>
-        </Pressable>
+        </TouchableOpacity>
 
         {/* Stats */}
         <View style={styles.section}>
@@ -210,16 +208,13 @@ export default function SettingsScreen() {
         {/* Reset */}
         <View style={styles.section}>
           <Text style={[styles.sectionLabel, { color: colors.muted }]}>Danger Zone</Text>
-          <Pressable
+          <TouchableOpacity
             onPress={handleReset}
-            style={({ pressed }) => [
-              styles.resetBtn,
-              { borderColor: colors.error + '60' },
-              pressed && { opacity: 0.7 },
-            ]}
+            activeOpacity={0.7}
+            style={[styles.resetBtn, { borderColor: colors.error + '60' }]}
           >
             <Text style={[styles.resetText, { color: colors.error }]}>Reset All Data</Text>
-          </Pressable>
+          </TouchableOpacity>
         </View>
 
         {/* About */}

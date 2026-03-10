@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, Pressable, StyleSheet, Platform } from 'react-native';
+import { View, Text, Pressable, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { ScreenContainer } from '@/components/screen-container';
@@ -77,29 +77,23 @@ export default function DailyScreen() {
 
         {/* CTA */}
         {turn !== 'done' ? (
-          <Pressable
+          <TouchableOpacity
             onPress={handleNext}
-            style={({ pressed }) => [
-              styles.ctaBtn,
-              { backgroundColor: colors.primary },
-              pressed && { transform: [{ scale: 0.97 }], opacity: 0.9 },
-            ]}
+            activeOpacity={0.85}
+            style={[styles.ctaBtn, { backgroundColor: colors.primary }]}
           >
             <Text style={[styles.ctaText, { color: '#FAF7F4' }]}>
               {turn === 'A' ? `${otherPartner.name}'s turn →` : 'We both answered'}
             </Text>
-          </Pressable>
+          </TouchableOpacity>
         ) : (
-          <Pressable
+          <TouchableOpacity
             onPress={() => router.back()}
-            style={({ pressed }) => [
-              styles.ctaBtn,
-              { backgroundColor: colors.primary },
-              pressed && { transform: [{ scale: 0.97 }], opacity: 0.9 },
-            ]}
+            activeOpacity={0.85}
+            style={[styles.ctaBtn, { backgroundColor: colors.primary }]}
           >
             <Text style={[styles.ctaText, { color: '#FAF7F4' }]}>Done</Text>
-          </Pressable>
+          </TouchableOpacity>
         )}
       </View>
     </ScreenContainer>

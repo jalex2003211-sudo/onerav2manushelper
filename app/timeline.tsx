@@ -4,6 +4,7 @@ import {
   Text,
   FlatList,
   Pressable,
+  TouchableOpacity,
   StyleSheet,
 } from 'react-native';
 import { router } from 'expo-router';
@@ -94,12 +95,13 @@ export default function TimelineScreen() {
       <View style={styles.container}>
         {/* Header */}
         <View style={styles.header}>
-          <Pressable
+          <TouchableOpacity
             onPress={() => router.back()}
-            style={({ pressed }) => [styles.backBtn, { opacity: pressed ? 0.6 : 1 }]}
+            activeOpacity={0.6}
+            style={styles.backBtn}
           >
             <Text style={[styles.backText, { color: colors.muted }]}>← Back</Text>
-          </Pressable>
+          </TouchableOpacity>
           <Text style={[styles.title, { color: colors.foreground }]}>Session Timeline</Text>
           <Text style={[styles.subtitle, { color: colors.muted }]}>
             Your journey together, session by session.

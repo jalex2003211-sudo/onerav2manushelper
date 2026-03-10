@@ -3,6 +3,7 @@ import {
   View,
   Text,
   Pressable,
+  TouchableOpacity,
   StyleSheet,
   Platform,
   Animated,
@@ -137,21 +138,18 @@ export default function SessionEndScreen() {
         </Text>
 
         {/* CTA */}
-        <Pressable
+        <TouchableOpacity
           onPress={() => {
             if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             setConnectionScore(connectionValue);
             incrementStreak();
             router.replace('/(tabs)');
           }}
-          style={({ pressed }) => [
-            styles.ctaBtn,
-            { backgroundColor: colors.primary },
-            pressed && { transform: [{ scale: 0.98 }], opacity: 0.9 },
-          ]}
+          activeOpacity={0.85}
+          style={[styles.ctaBtn, { backgroundColor: colors.primary }]}
         >
           <Text style={[styles.ctaText, { color: '#FAF7F4' }]}>Return Home</Text>
-        </Pressable>
+        </TouchableOpacity>
       </View>
     </ScreenContainer>
   );

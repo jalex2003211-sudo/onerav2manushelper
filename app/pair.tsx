@@ -4,6 +4,7 @@ import {
   Text,
   TextInput,
   Pressable,
+  TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
   Platform,
@@ -111,30 +112,26 @@ export default function PairScreen() {
                 <Text style={[styles.codeHint, { color: colors.muted }]}>
                   They'll enter this code in the "Join with code" tab.
                 </Text>
-                <Pressable
+                <TouchableOpacity
                   onPress={() => router.replace('/(tabs)')}
-                  style={({ pressed }) => [
-                    styles.primaryBtn,
-                    { backgroundColor: colors.primary, opacity: pressed ? 0.85 : 1 },
-                  ]}
+                  activeOpacity={0.85}
+                  style={[styles.primaryBtn, { backgroundColor: colors.primary }]}
                 >
                   <Text style={[styles.primaryBtnText, { color: colors.background }]}>
                     Continue to app
                   </Text>
-                </Pressable>
+                </TouchableOpacity>
               </View>
             ) : (
               <>
                 <Text style={[styles.sectionText, { color: colors.muted }]}>
                   Generate a unique code that your partner can use to join your couple profile.
                 </Text>
-                <Pressable
+                <TouchableOpacity
                   onPress={handleCreate}
                   disabled={createCouple.isPending}
-                  style={({ pressed }) => [
-                    styles.primaryBtn,
-                    { backgroundColor: colors.primary, opacity: pressed ? 0.85 : 1 },
-                  ]}
+                  activeOpacity={0.85}
+                  style={[styles.primaryBtn, { backgroundColor: colors.primary }]}
                 >
                   {createCouple.isPending ? (
                     <ActivityIndicator color={colors.background} />
@@ -143,7 +140,7 @@ export default function PairScreen() {
                       Generate invite code
                     </Text>
                   )}
-                </Pressable>
+                </TouchableOpacity>
               </>
             )}
           </View>
@@ -170,13 +167,11 @@ export default function PairScreen() {
               returnKeyType="done"
               onSubmitEditing={handleJoin}
             />
-            <Pressable
+            <TouchableOpacity
               onPress={handleJoin}
               disabled={joinCouple.isPending}
-              style={({ pressed }) => [
-                styles.primaryBtn,
-                { backgroundColor: colors.primary, opacity: pressed ? 0.85 : 1 },
-              ]}
+              activeOpacity={0.85}
+              style={[styles.primaryBtn, { backgroundColor: colors.primary }]}
             >
               {joinCouple.isPending ? (
                 <ActivityIndicator color={colors.background} />
@@ -185,7 +180,7 @@ export default function PairScreen() {
                   Join couple
                 </Text>
               )}
-            </Pressable>
+            </TouchableOpacity>
           </View>
         )}
 
@@ -194,12 +189,13 @@ export default function PairScreen() {
         )}
 
         {/* Skip option */}
-        <Pressable
+        <TouchableOpacity
           onPress={() => router.replace('/(tabs)')}
-          style={({ pressed }) => [styles.skipBtn, { opacity: pressed ? 0.6 : 1 }]}
+          activeOpacity={0.6}
+          style={styles.skipBtn}
         >
           <Text style={[styles.skipText, { color: colors.muted }]}>Skip for now — use locally</Text>
-        </Pressable>
+        </TouchableOpacity>
       </View>
     </ScreenContainer>
   );

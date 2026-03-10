@@ -3,6 +3,7 @@ import {
   View,
   Text,
   Pressable,
+  TouchableOpacity,
   StyleSheet,
   Dimensions,
   Platform,
@@ -159,16 +160,17 @@ export default function SessionScreen() {
       <View style={styles.container}>
         {/* Top bar */}
         <View style={styles.topBar}>
-          <Pressable
+          <TouchableOpacity
             onPress={() => {
               if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               endSession();
               router.replace('/(tabs)');
             }}
-            style={({ pressed }) => [styles.exitBtn, { opacity: pressed ? 0.6 : 1 }]}
+            activeOpacity={0.6}
+            style={styles.exitBtn}
           >
             <Text style={[styles.exitText, { color: colors.muted }]}>End</Text>
-          </Pressable>
+          </TouchableOpacity>
 
           <View style={styles.phaseChip}>
             <View style={[styles.phaseDot, { backgroundColor: phaseColor }]} />
@@ -299,35 +301,23 @@ export default function SessionScreen() {
 
         {/* Bottom controls */}
         <View style={styles.bottomControls}>
-          <Pressable
+          <TouchableOpacity
             onPress={handleSwitchTurn}
-            style={({ pressed }) => [
-              styles.switchBtn,
-              {
-                backgroundColor: colors.surface,
-                borderColor: colors.border,
-                opacity: pressed ? 0.8 : 1,
-              },
-            ]}
+            activeOpacity={0.8}
+            style={[styles.switchBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
           >
             <Text style={[styles.switchBtnText, { color: colors.muted }]}>Switch turn</Text>
-          </Pressable>
+          </TouchableOpacity>
 
-          <Pressable
+          <TouchableOpacity
             onPress={handleNext}
-            style={({ pressed }) => [
-              styles.nextBtn,
-              {
-                backgroundColor: phaseColor,
-                opacity: pressed ? 0.85 : 1,
-                transform: [{ scale: pressed ? 0.97 : 1 }],
-              },
-            ]}
+            activeOpacity={0.85}
+            style={[styles.nextBtn, { backgroundColor: phaseColor }]}
           >
             <Text style={[styles.nextBtnText, { color: '#FAF7F4' }]}>
               {isLastQuestion ? 'Finish session' : 'Next question'}
             </Text>
-          </Pressable>
+          </TouchableOpacity>
         </View>
       </View>
     </ScreenContainer>

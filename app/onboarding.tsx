@@ -2,7 +2,7 @@ import React, { useRef, useState } from 'react';
 import {
   View,
   Text,
-  Pressable,
+  TouchableOpacity,
   StyleSheet,
   Dimensions,
   FlatList,
@@ -112,25 +112,24 @@ export default function OnboardingScreen() {
 
         {/* CTA */}
         <View style={styles.footer}>
-          <Pressable
+          <TouchableOpacity
             onPress={handleNext}
-            style={({ pressed }) => [
-              styles.primaryBtn,
-              { backgroundColor: colors.primary, opacity: pressed ? 0.85 : 1 },
-            ]}
+            activeOpacity={0.85}
+            style={[styles.primaryBtn, { backgroundColor: colors.primary }]}
           >
             <Text style={[styles.primaryBtnText, { color: colors.background }]}>
               {isLast ? 'Get started' : 'Continue'}
             </Text>
-          </Pressable>
+          </TouchableOpacity>
 
           {isLast && (
-            <Pressable
+            <TouchableOpacity
               onPress={() => router.replace('/setup')}
-              style={({ pressed }) => [styles.skipBtn, { opacity: pressed ? 0.6 : 1 }]}
+              activeOpacity={0.6}
+              style={styles.skipBtn}
             >
               <Text style={[styles.skipText, { color: colors.muted }]}>Skip intro</Text>
-            </Pressable>
+            </TouchableOpacity>
           )}
         </View>
       </View>

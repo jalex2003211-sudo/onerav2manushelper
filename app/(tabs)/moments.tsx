@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, FlatList, Pressable, StyleSheet, Platform } from 'react-native';
+import { View, Text, FlatList, Pressable, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { ScreenContainer } from '@/components/screen-container';
 import { useColors } from '@/hooks/use-colors';
@@ -24,15 +24,16 @@ function MomentCard({ moment, onRemove }: { moment: SavedMoment; onRemove: () =>
         </View>
         <View style={styles.cardMeta}>
           <Text style={[styles.date, { color: colors.muted }]}>{date}</Text>
-          <Pressable
+          <TouchableOpacity
             onPress={() => {
               if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               onRemove();
             }}
-            style={({ pressed }) => [styles.removeBtn, pressed && { opacity: 0.5 }]}
+            activeOpacity={0.5}
+            style={styles.removeBtn}
           >
             <Text style={[styles.removeText, { color: colors.muted }]}>✕</Text>
-          </Pressable>
+          </TouchableOpacity>
         </View>
       </View>
       <Text style={[styles.questionText, { color: colors.foreground }]}>

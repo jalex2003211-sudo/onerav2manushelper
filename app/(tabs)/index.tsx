@@ -3,6 +3,7 @@ import {
   View,
   Text,
   Pressable,
+  TouchableOpacity,
   StyleSheet,
   ScrollView,
   Platform,
@@ -80,17 +81,10 @@ export default function HomeScreen() {
         />
 
         {/* Daily Question Card */}
-        <Pressable
+        <TouchableOpacity
           onPress={() => router.push('/daily')}
-          style={({ pressed }) => [
-            styles.dailyCard,
-            {
-              backgroundColor: colors.surface,
-              borderColor: colors.border,
-              opacity: pressed ? 0.9 : 1,
-              transform: [{ scale: pressed ? 0.98 : 1 }],
-            },
-          ]}
+          activeOpacity={0.9}
+          style={[styles.dailyCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
         >
           <View style={styles.dailyCardHeader}>
             <Text style={[styles.dailyCardLabel, { color: colors.muted }]}>Today's question</Text>
@@ -104,7 +98,7 @@ export default function HomeScreen() {
           <Text style={[styles.dailyCardCta, { color: colors.primary }]}>
             Reflect together →
           </Text>
-        </Pressable>
+        </TouchableOpacity>
 
         {/* Partner Mood */}
         {partnerMood && partnerMood.visibleToPartner && (
@@ -127,43 +121,31 @@ export default function HomeScreen() {
           <Text style={[styles.sectionSubtitle, { color: colors.muted }]}>
             A guided conversation, just for you two.
           </Text>
-          <Pressable
+          <TouchableOpacity
             onPress={() => {
               if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               router.push('/session-start');
             }}
-            style={({ pressed }) => [
-              styles.sessionBtn,
-              {
-                backgroundColor: colors.primary,
-                opacity: pressed ? 0.85 : 1,
-                transform: [{ scale: pressed ? 0.97 : 1 }],
-              },
-            ]}
+            activeOpacity={0.85}
+            style={[styles.sessionBtn, { backgroundColor: colors.primary }]}
           >
             <Text style={[styles.sessionBtnText, { color: colors.background }]}>
               Begin a conversation
             </Text>
-          </Pressable>
+          </TouchableOpacity>
         </View>
 
         {/* Quick mood check-in */}
         {!myMood && (
-          <Pressable
+          <TouchableOpacity
             onPress={() => router.push('/mood' as never)}
-            style={({ pressed }) => [
-              styles.moodCta,
-              {
-                backgroundColor: colors.surface,
-                borderColor: colors.border,
-                opacity: pressed ? 0.8 : 1,
-              },
-            ]}
+            activeOpacity={0.8}
+            style={[styles.moodCta, { backgroundColor: colors.surface, borderColor: colors.border }]}
           >
             <Text style={[styles.moodCtaText, { color: colors.muted }]}>
               How are you feeling today? →
             </Text>
-          </Pressable>
+          </TouchableOpacity>
         )}
 
         {/* Recent sessions */}

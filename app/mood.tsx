@@ -3,6 +3,7 @@ import {
   View,
   Text,
   Pressable,
+  TouchableOpacity,
   StyleSheet,
   Switch,
   Platform,
@@ -100,21 +101,16 @@ export default function MoodScreen() {
         )}
 
         {/* Save */}
-        <Pressable
+        <TouchableOpacity
           onPress={handleSave}
           disabled={!selected}
-          style={({ pressed }) => [
-            styles.saveBtn,
-            {
-              backgroundColor: selected ? colors.primary : colors.border,
-              opacity: pressed ? 0.85 : 1,
-            },
-          ]}
+          activeOpacity={0.85}
+          style={[styles.saveBtn, { backgroundColor: selected ? colors.primary : colors.border }]}
         >
           <Text style={[styles.saveBtnText, { color: selected ? colors.background : colors.muted }]}>
             Save check-in
           </Text>
-        </Pressable>
+        </TouchableOpacity>
       </View>
     </ScreenContainer>
   );
