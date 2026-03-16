@@ -16,6 +16,9 @@ export interface SessionState {
   aiFollowUp: string | null;
   isLoadingAI: boolean;
   connectionScore: number | null;
+  // Check-in tracking: both partners must check in before advancing
+  partnerACheckedIn: boolean;
+  partnerBCheckedIn: boolean;
 
   // History (lightweight local cache)
   sessionHistory: SessionHistoryItem[];
@@ -33,6 +36,8 @@ export interface SessionHistoryItem {
 
 interface SessionStore extends SessionState {
   startSession: (deckId: DeckId) => void;
+  checkIn: (partner: 'A' | 'B') => void;
+  canAdvanceQuestion: () => boolean;
   advanceQuestion: () => void;
   switchTurn: () => void;
   saveMoment: (questionId: string) => void;
@@ -60,6 +65,8 @@ const DEFAULT_STATE: SessionState = {
   aiFollowUp: null,
   isLoadingAI: false,
   connectionScore: null,
+  partnerACheckedIn: false,
+  partnerBCheckedIn: false,
   sessionHistory: [],
 };
 
@@ -80,11 +87,30 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       aiFollowUp: null,
       isLoadingAI: false,
       connectionScore: null,
+      partnerACheckedIn: false,
+      partnerBCheckedIn: false,
     });
   },
 
+  checkIn: (partner) => {
+    set((s) => {
+      if (partner === 'A') {
+        return { partnerACheckedIn: true };
+      } else {
+        return { partnerBCheckedIn: true };
+      }
+    });
+  },
+
+  canAdvanceQuestion: () => {
+    const { partnerACheckedIn, partnerBCheckedIn } = get();
+    return partnerACheckedIn && partnerBCheckedIn;
+  },
+
   advanceQuestion: () => {
-    const { currentIndex, questions } = get();
+    const { currentIndex, questions, canAdvanceQuestion } = get();
+    // Only advance if both partners have checked in
+    if (!canAdvanceQuestion()) return;
     const nextIndex = currentIndex + 1;
     if (nextIndex >= questions.length) return;
     const nextQuestion = questions[nextIndex];
@@ -93,6 +119,8 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       currentPhase: nextQuestion?.phase ?? 'reflection',
       turnOwner: 'A',
       aiFollowUp: null,
+      partnerACheckedIn: false,
+      partnerBCheckedIn: false,
     });
   },
 
@@ -141,7 +169,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       completedAt: new Date().toISOString(),
     };
     const newHistory = [item, ...sessionHistory].slice(0, 50); // keep last 50
-    set({ isActive: false, sessionHistory: newHistory });
+    set({ isActive: false, sessionHistory: newHistory, partnerACheckedIn: false, partnerBCheckedIn: false });
     AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(newHistory)).catch(() => {});
     return item;
   },

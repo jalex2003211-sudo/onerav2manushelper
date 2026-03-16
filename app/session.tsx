@@ -1,4 +1,3 @@
-import React, { useCallback, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -12,6 +11,7 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
+import { useEffect, useRef, useCallback } from 'react';
 import { ScreenContainer } from '@/components/screen-container';
 import { useColors } from '@/hooks/use-colors';
 import { useSessionStore } from '@/store/session.store';
@@ -51,8 +51,11 @@ export default function SessionScreen() {
     aiFollowUp,
     isLoadingAI,
     isActive,
+    partnerACheckedIn,
+    partnerBCheckedIn,
     advanceQuestion,
-    switchTurn,
+    checkIn,
+    canAdvanceQuestion,
     setAIFollowUp,
     setLoadingAI,
     endSession,
@@ -115,22 +118,29 @@ export default function SessionScreen() {
     });
   };
 
+  const handleCheckIn = (partner: 'A' | 'B') => {
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    checkIn(partner);
+  };
+
   const handleNext = () => {
+    if (!canAdvanceQuestion()) {
+      // Show feedback that both partners must check in
+      if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      return;
+    }
+
     if (isLastQuestion) {
       endSession();
       if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.replace('/session-end');
       return;
     }
+
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     animateCardChange(() => {
       advanceQuestion();
     });
-  };
-
-  const handleSwitchTurn = () => {
-    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    switchTurn();
   };
 
   const handleToggleMoment = () => {
@@ -152,8 +162,6 @@ export default function SessionScreen() {
 
   const momentSaved = isSaved(currentQuestion.id);
   const progress = (currentIndex + 1) / questions.length;
-  const currentPartner = turnOwner === 'A' ? partnerA : partnerB;
-  const otherPartner = turnOwner === 'A' ? partnerB : partnerA;
 
   return (
     <ScreenContainer containerClassName="bg-background" edges={['top', 'left', 'right']}>
@@ -194,30 +202,6 @@ export default function SessionScreen() {
           />
         </View>
 
-        {/* Turn indicator */}
-        <View style={styles.turnRow}>
-          {([partnerA, partnerB] as const).map((partner, i) => {
-            const isActiveTurn = (i === 0 && turnOwner === 'A') || (i === 1 && turnOwner === 'B');
-            return (
-              <View
-                key={i}
-                style={[
-                  styles.turnChip,
-                  {
-                    backgroundColor: isActiveTurn ? phaseColor + '22' : colors.surface,
-                    borderColor: isActiveTurn ? phaseColor : colors.border,
-                  },
-                ]}
-              >
-                <Text style={styles.turnEmoji}>{partner.avatar}</Text>
-                <Text style={[styles.turnName, { color: isActiveTurn ? phaseColor : colors.muted }]}>
-                  {partner.name}
-                </Text>
-              </View>
-            );
-          })}
-        </View>
-
         {/* Question card */}
         <ScrollView
           style={styles.cardScroll}
@@ -243,11 +227,6 @@ export default function SessionScreen() {
               {/* Main question */}
               <Text style={[styles.questionText, { color: colors.foreground }]}>
                 {currentQuestion.text}
-              </Text>
-
-              {/* Turn hint */}
-              <Text style={[styles.turnHint, { color: colors.muted }]}>
-                {currentPartner.avatar} {currentPartner.name} answers first · then {otherPartner.avatar} {otherPartner.name}
               </Text>
 
               {/* AI follow-up */}
@@ -299,22 +278,75 @@ export default function SessionScreen() {
           </Animated.View>
         </ScrollView>
 
+        {/* Check-in section */}
+        <View style={styles.checkInSection}>
+          <Text style={[styles.checkInLabel, { color: colors.muted }]}>Both partners check in when ready</Text>
+          <View style={styles.checkInRow}>
+            <TouchableOpacity
+              onPress={() => handleCheckIn('A')}
+              activeOpacity={0.7}
+              style={[
+                styles.checkInBtn,
+                {
+                  backgroundColor: partnerACheckedIn ? phaseColor : colors.surface,
+                  borderColor: partnerACheckedIn ? phaseColor : colors.border,
+                },
+              ]}
+            >
+              <Text style={styles.checkInEmoji}>{partnerA.avatar}</Text>
+              <Text
+                style={[
+                  styles.checkInBtnText,
+                  { color: partnerACheckedIn ? '#FAF7F4' : colors.foreground },
+                ]}
+              >
+                {partnerACheckedIn ? '✓' : partnerA.name}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => handleCheckIn('B')}
+              activeOpacity={0.7}
+              style={[
+                styles.checkInBtn,
+                {
+                  backgroundColor: partnerBCheckedIn ? phaseColor : colors.surface,
+                  borderColor: partnerBCheckedIn ? phaseColor : colors.border,
+                },
+              ]}
+            >
+              <Text style={styles.checkInEmoji}>{partnerB.avatar}</Text>
+              <Text
+                style={[
+                  styles.checkInBtnText,
+                  { color: partnerBCheckedIn ? '#FAF7F4' : colors.foreground },
+                ]}
+              >
+                {partnerBCheckedIn ? '✓' : partnerB.name}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
         {/* Bottom controls */}
         <View style={styles.bottomControls}>
           <TouchableOpacity
-            onPress={handleSwitchTurn}
-            activeOpacity={0.8}
-            style={[styles.switchBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
-          >
-            <Text style={[styles.switchBtnText, { color: colors.muted }]}>Switch turn</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
             onPress={handleNext}
-            activeOpacity={0.85}
-            style={[styles.nextBtn, { backgroundColor: phaseColor }]}
+            activeOpacity={canAdvanceQuestion() ? 0.85 : 0.6}
+            disabled={!canAdvanceQuestion()}
+            style={[
+              styles.nextBtn,
+              {
+                backgroundColor: canAdvanceQuestion() ? phaseColor : colors.border,
+              },
+            ]}
           >
-            <Text style={[styles.nextBtnText, { color: '#FAF7F4' }]}>
+            <Text
+              style={[
+                styles.nextBtnText,
+                { color: canAdvanceQuestion() ? '#FAF7F4' : colors.muted },
+              ]}
+            >
               {isLastQuestion ? 'Finish session' : 'Next question'}
             </Text>
           </TouchableOpacity>
@@ -348,145 +380,138 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+    backgroundColor: 'rgba(212, 169, 106, 0.08)',
   },
   phaseDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
   },
   phaseLabel: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '600',
   },
   progress: {
-    fontSize: 14,
+    fontSize: 13,
+    fontWeight: '500',
   },
   progressBar: {
     height: 3,
-    borderRadius: 2,
+    borderRadius: 1.5,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    borderRadius: 2,
-  },
-  turnRow: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  turnChip: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  turnEmoji: {
-    fontSize: 18,
-  },
-  turnName: {
-    fontSize: 14,
-    fontWeight: '600',
+    borderRadius: 1.5,
   },
   cardScroll: {
     flex: 1,
   },
   cardScrollContent: {
-    flexGrow: 1,
+    paddingVertical: 12,
   },
   questionCard: {
-    borderRadius: 24,
+    borderRadius: 16,
     borderWidth: 1,
     overflow: 'hidden',
-    flex: 1,
-    minHeight: 300,
+    marginHorizontal: 0,
   },
   phaseStrip: {
     height: 4,
-    width: '100%',
   },
   cardContent: {
     padding: 24,
     gap: 16,
-    flex: 1,
   },
   deckLabel: {
     fontSize: 12,
     fontWeight: '600',
     textTransform: 'uppercase',
-    letterSpacing: 0.8,
+    letterSpacing: 0.5,
   },
   questionText: {
-    fontSize: 22,
-    fontWeight: '500',
-    lineHeight: 32,
-    flex: 1,
-  },
-  turnHint: {
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: 20,
+    fontWeight: '600',
+    lineHeight: 28,
   },
   aiFollowUp: {
-    borderRadius: 14,
+    borderRadius: 12,
     borderWidth: 1,
-    padding: 14,
+    padding: 12,
     gap: 6,
   },
   aiFollowUpLabel: {
     fontSize: 11,
-    fontWeight: '700',
+    fontWeight: '600',
     textTransform: 'uppercase',
-    letterSpacing: 1,
   },
   aiFollowUpText: {
-    fontSize: 16,
-    lineHeight: 24,
-    fontStyle: 'italic',
+    fontSize: 14,
+    lineHeight: 20,
   },
   cardActions: {
     flexDirection: 'row',
-    gap: 10,
+    gap: 8,
   },
   actionBtn: {
     flex: 1,
-    borderRadius: 12,
-    borderWidth: 1,
     paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    borderWidth: 1,
     alignItems: 'center',
   },
   actionBtnText: {
-    fontSize: 14,
-    fontWeight: '500',
+    fontSize: 13,
+    fontWeight: '600',
   },
-  bottomControls: {
+  checkInSection: {
+    gap: 8,
+  },
+  checkInLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
+  },
+  checkInRow: {
     flexDirection: 'row',
-    gap: 10,
+    gap: 12,
   },
-  switchBtn: {
+  checkInBtn: {
     flex: 1,
-    height: 52,
-    borderRadius: 14,
-    borderWidth: 1,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 1.5,
   },
-  switchBtnText: {
-    fontSize: 15,
-    fontWeight: '500',
+  checkInEmoji: {
+    fontSize: 18,
+  },
+  checkInBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  bottomControls: {
+    gap: 12,
   },
   nextBtn: {
-    flex: 2,
-    height: 52,
-    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
   nextBtnText: {
     fontSize: 16,
-    fontWeight: '600',
-    letterSpacing: 0.2,
+    fontWeight: '700',
+    letterSpacing: 0.3,
   },
 });

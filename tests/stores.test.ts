@@ -64,6 +64,8 @@ describe('useSessionStore', () => {
 
   it('advanceQuestion increments currentIndex and updates currentPhase', () => {
     useSessionStore.getState().startSession('deep-connection');
+    useSessionStore.getState().checkIn('A');
+    useSessionStore.getState().checkIn('B');
     useSessionStore.getState().advanceQuestion();
     const state = useSessionStore.getState();
     expect(state.currentIndex).toBe(1);

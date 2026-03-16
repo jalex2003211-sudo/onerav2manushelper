@@ -39,6 +39,8 @@ describe('Session Flow — full lifecycle', () => {
 
     // Advance through all questions
     for (let i = 0; i < questions.length - 1; i++) {
+      useSessionStore.getState().checkIn('A');
+      useSessionStore.getState().checkIn('B');
       useSessionStore.getState().advanceQuestion();
     }
 
@@ -63,6 +65,8 @@ describe('Session Flow — full lifecycle', () => {
 
     // Advance to the last question to ensure all phases are covered
     for (let i = 0; i < questions.length - 1; i++) {
+      useSessionStore.getState().checkIn('A');
+      useSessionStore.getState().checkIn('B');
       useSessionStore.getState().advanceQuestion();
     }
 
@@ -120,6 +124,8 @@ describe('Session Flow — turn management', () => {
   it('advancing a question resets turn to A', () => {
     useSessionStore.getState().startSession('curiosity');
     useSessionStore.getState().switchTurn(); // now B
+    useSessionStore.getState().checkIn('A');
+    useSessionStore.getState().checkIn('B');
     useSessionStore.getState().advanceQuestion();
     expect(useSessionStore.getState().turnOwner).toBe('A');
   });

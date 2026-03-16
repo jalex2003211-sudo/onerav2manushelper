@@ -88,3 +88,12 @@
 
 ### Low
 - [x] FIX-L1: Write AI router weeklyInsight parsing unit test
+
+## User Feedback Fixes & Enhancements
+- [ ] BUG: Fix streak counter dots on Home screen (not reflecting actual daily activity)
+- [ ] FEATURE: Add explicit "Check In" button to session flow
+- [ ] FEATURE: Track both partners' check-ins before advancing to next question
+- [ ] FEATURE: Show visual indicator of which partner has checked in
+- [ ] FEATURE: Disable "Next Question" button until both partners check in
+- [ ] TEST: Verify streak dots update correctly after session completion
+- [ ] TEST: Verify session flow requires both check-ins before advancing

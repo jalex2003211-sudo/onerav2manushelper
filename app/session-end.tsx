@@ -22,7 +22,7 @@ const SLIDER_WIDTH = Dimensions.get('window').width - 96;
 export default function SessionEndScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ count?: string }>();
-  const { partnerA, partnerB, incrementStreak } = usePartnersStore();
+  const { partnerA, partnerB, markActiveToday } = usePartnersStore();
   const { sessionHistory, setConnectionScore } = useSessionStore();
   const lastSession = sessionHistory[0] ?? null;
   const colors = useColors();
@@ -143,7 +143,7 @@ export default function SessionEndScreen() {
           onPress={() => {
             if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             setConnectionScore(connectionValue);
-            incrementStreak();
+            markActiveToday();
             router.replace('/(tabs)');
           }}
           activeOpacity={0.85}

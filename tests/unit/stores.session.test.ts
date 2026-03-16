@@ -65,6 +65,8 @@ describe('Session Store — startSession', () => {
 describe('Session Store — advanceQuestion', () => {
   it('increments currentIndex by 1', () => {
     useSessionStore.getState().startSession('curiosity');
+    useSessionStore.getState().checkIn('A');
+    useSessionStore.getState().checkIn('B');
     useSessionStore.getState().advanceQuestion();
     expect(useSessionStore.getState().currentIndex).toBe(1);
   });
@@ -72,6 +74,8 @@ describe('Session Store — advanceQuestion', () => {
   it('does not advance past the last question', () => {
     useSessionStore.getState().startSession('curiosity');
     for (let i = 0; i < 20; i++) {
+      useSessionStore.getState().checkIn('A');
+      useSessionStore.getState().checkIn('B');
       useSessionStore.getState().advanceQuestion();
     }
     const { currentIndex, questions } = useSessionStore.getState();
@@ -81,6 +85,8 @@ describe('Session Store — advanceQuestion', () => {
   it('updates currentPhase to match the new question', () => {
     useSessionStore.getState().startSession('curiosity');
     const { questions } = useSessionStore.getState();
+    useSessionStore.getState().checkIn('A');
+    useSessionStore.getState().checkIn('B');
     useSessionStore.getState().advanceQuestion();
     const expectedPhase = questions[1]?.phase;
     expect(useSessionStore.getState().currentPhase).toBe(expectedPhase);
@@ -89,6 +95,8 @@ describe('Session Store — advanceQuestion', () => {
   it('resets turnOwner to A after advancing', () => {
     useSessionStore.getState().startSession('curiosity');
     useSessionStore.getState().switchTurn(); // B
+    useSessionStore.getState().checkIn('A');
+    useSessionStore.getState().checkIn('B');
     useSessionStore.getState().advanceQuestion();
     expect(useSessionStore.getState().turnOwner).toBe('A');
   });
@@ -96,6 +104,8 @@ describe('Session Store — advanceQuestion', () => {
   it('clears aiFollowUp after advancing', () => {
     useSessionStore.getState().startSession('curiosity');
     useSessionStore.getState().setAIFollowUp('A follow-up?');
+    useSessionStore.getState().checkIn('A');
+    useSessionStore.getState().checkIn('B');
     useSessionStore.getState().advanceQuestion();
     expect(useSessionStore.getState().aiFollowUp).toBeNull();
   });
