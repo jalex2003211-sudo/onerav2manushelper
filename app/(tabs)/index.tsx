@@ -20,7 +20,11 @@ import { trpc } from '@/lib/trpc';
 
 export default function HomeScreen() {
   const colors = useColors();
-  const { partnerA, partnerB, isSetupComplete, streakCount, relationshipStage } = usePartnersStore();
+  const partnerA = usePartnersStore((s) => s.partnerA);
+  const partnerB = usePartnersStore((s) => s.partnerB);
+  const isSetupComplete = usePartnersStore((s) => s.isSetupComplete);
+  const streakCount = usePartnersStore((s) => s.streakCount);
+  const relationshipStage = usePartnersStore((s) => s.relationshipStage);
   const { myMood, partnerMood } = useMoodStore();
   const sessionHistory = useSessionStore((s) => s.sessionHistory);
 

@@ -257,22 +257,23 @@ export default function SessionScreen() {
                   </Text>
                 </Pressable>
 
-                <Pressable
+                <TouchableOpacity
                   onPress={handleGetAIFollowUp}
                   disabled={isLoadingAI}
-                  style={({ pressed }) => [
+                  activeOpacity={isLoadingAI ? 1 : 0.6}
+                  style={[
                     styles.actionBtn,
                     {
                       backgroundColor: colors.background,
                       borderColor: colors.border,
-                      opacity: pressed || isLoadingAI ? 0.6 : 1,
+                      opacity: isLoadingAI ? 0.6 : 1,
                     },
                   ]}
                 >
                   <Text style={[styles.actionBtnText, { color: colors.muted }]}>
                     {isLoadingAI ? '✦ ...' : '✦ Go deeper'}
                   </Text>
-                </Pressable>
+                </TouchableOpacity>
               </View>
             </View>
           </Animated.View>
