@@ -101,3 +101,6 @@
 - [x] Add bilingual reminder copy and persistence coverage
 - [x] Add regression tests for reminder scheduling and cancellation
 - [x] Ensure rapidly restarted sessions receive unique IDs
+- [x] Upgrade project dependencies from Expo SDK 54 to SDK 57
+- [x] Validate SDK 57 native configuration and Expo Go compatibility
+- [x] Re-run regression tests and TypeScript checks after the upgrade
