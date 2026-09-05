@@ -52,6 +52,13 @@ interface SessionStore extends SessionState {
 }
 
 const HISTORY_KEY = '@onera_v2_session_history';
+let lastSessionIdTimestamp = 0;
+
+function createSessionId() {
+  const now = Date.now();
+  lastSessionIdTimestamp = Math.max(now, lastSessionIdTimestamp + 1);
+  return `session_${lastSessionIdTimestamp}`;
+}
 
 const DEFAULT_STATE: SessionState = {
   isActive: false,
@@ -77,7 +84,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     const questions = buildSession(deckId, 10);
     set({
       isActive: true,
-      sessionId: `session_${Date.now()}`,
+      sessionId: createSessionId(),
       deckId,
       questions,
       currentIndex: 0,

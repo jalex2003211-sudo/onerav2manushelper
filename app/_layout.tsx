@@ -23,6 +23,7 @@ import { useSessionStore } from "@/store/session.store";
 import { useMoodStore } from "@/store/mood.store";
 import { useInsightsStore } from "@/store/insights.store";
 import { useMomentsStore } from "@/store/moments.store";
+import { useRemindersStore } from "@/store/reminders.store";
 
 const DEFAULT_WEB_INSETS: EdgeInsets = { top: 0, right: 0, bottom: 0, left: 0 };
 const DEFAULT_WEB_FRAME: Rect = { x: 0, y: 0, width: 0, height: 0 };
@@ -45,6 +46,7 @@ function StoreHydrator() {
   const hydrateMood = useMoodStore((s) => s.hydrate);
   const hydrateInsights = useInsightsStore((s) => s.hydrate);
   const hydrateMoments = useMomentsStore((s) => s.hydrate);
+  const hydrateReminders = useRemindersStore((s) => s.hydrate);
   const isSetupComplete = usePartnersStore((s) => s.isSetupComplete);
 
   const [hydrated, setHydrated] = useState(false);
@@ -57,6 +59,7 @@ function StoreHydrator() {
       hydrateMood(),
       hydrateInsights(),
       hydrateMoments(),
+      hydrateReminders(),
     ])
       .catch(() => {})
       .finally(() => setHydrated(true));
